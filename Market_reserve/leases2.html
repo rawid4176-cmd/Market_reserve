@@ -1,0 +1,180 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>แผงสัญญา</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!---แถบเลือเมนู-->
+    <nav class="navbar navbar-expand navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="main_menu.html">ตลาดนัด</a>
+            <div class="navbar-nav">
+                <a class="nav-link " href="main_menu.html">หน้าแรก</a>
+                <a class="nav-link " href="stalls2.html">แผงค้า</a>
+                <a class="nav-link active" href="leases2.html">สัญญา</a>
+                <a class="nav-link" href="fines2.html">ค่าปรับ</a>
+                <a class="nav-link" href="utilities2.html">ค่าน้ำไฟ</a>
+                <a class="nav-link" href="merchants2.html">ผู้ค้า</a>
+            </div>
+        </div>
+    </nav>
+
+
+    <div class="container mt-4">
+        <p>หน้านี้จะแสดงแผงสัญญา</p>
+
+        <table class="table table-hover ">
+            <thead>
+                <tr>
+
+                    <th>รหัสสัญญา</th>
+                    <th>แผง</th>
+                    <th>พ่อค้า</th>
+                    <th>วันตลาด</th>
+                    <th>ค่าเช่า</th>
+                    <th>มัดจำ</th>
+                    <th>พนักงานที่ทำสัญญา</th>
+                    <th>สถานะ</th>
+
+                    <th></th>
+
+                </tr>
+
+            </thead>
+            <tbody id="tbody">
+            </tbody>
+
+        </table>
+        <!--- โมเดลแบบบฟอร์ม-->
+        <div class="modal fade" id="cancel_modal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">ยกเลิกสัญญา <span id="cancel_id"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-1">แผง: <span id="cancel_stall"></span></p>
+                        <p class="fw-bold">คืนเงินมัดจำ: <span id="cancel_refund"></span> บาท</p>
+                        <div class="mb-3">
+                            <label class="form-label">พนักงานผู้ทำรายการ</label>
+                            <select id="cancel_staff_sel" class="form-select"></select>
+                            <div class="invalid-feedback">กรุณาเลือกพนักงาน</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ไม่ยกเลิก</button>
+                        <button type="button" class="btn btn-danger" id="cancel_confirm_btn">ยืนยันยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+                        // ===== ข้อมูลหลอก: ชื่อคอลัมน์ตรงกับ schema จริง =====
+                        let stalls = [
+                            { stall_id: 1, stall_code: 'A01' },
+                            { stall_id: 2, stall_code: 'A02' },
+                            { stall_id: 3, stall_code: 'B01' },
+                            { stall_id: 4, stall_code: 'A03' }
+                        ];
+                        let merchants = [
+                            { merchant_id: 1, merchant_name: 'พี่โด้' },
+                            { merchant_id: 2, merchant_name: 'พี่ซี่' },
+                            { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด' }
+                        ];
+                        let market_days = [
+                            { market_day_id: 2, market_date: '2026-10-10' },
+                            { market_day_id: 4, market_date: '2026-10-24' }
+                        ];
+                        let staff = [
+                            { staff_id: 1, staff_name: 'โบอิ้ง' },
+                            { staff_id: 2, staff_name: 'โบอิ้ง(ยิ้ม)' }
+                        ];
+                        let leases = [
+                            { lease_id: 1, stall_id: 1, merchant_id: 1, market_day_id: 2, staff_id: 1, rent_price: 300, deposit_amount: 60, status: 'rented', cancelled_at: null },
+                            { lease_id: 2, stall_id: 2, merchant_id: 2, market_day_id: 2, staff_id: 2, rent_price: 250, deposit_amount: 50, status: 'rented', cancelled_at: null },
+                            { lease_id: 3, stall_id: 4, merchant_id: 3, market_day_id: 4, staff_id: 1, rent_price: 300, deposit_amount: 60, status: 'cancelled', cancelled_at: '2026-10-05T10:00:00' },
+                            { lease_id: 2, stall_id: 2, merchant_id: 2, market_day_id: 2, staff_id: 1, rent_price: 250, deposit_amount: 50, status: 'rented', cancelled_at: null }
+                        ];
+
+                        // ค่าในฐานข้อมูลเป็นภาษาอังกฤษ ป้ายที่แสดงเป็นภาษาไทย
+                        let status_th = { rented: 'ใช้งาน', cancelled: 'ยกเลิก' };
+                        let lbadge_class = { rented: 'bg-success', cancelled: 'bg-secondary' };
+
+                        // ===== อ้างอิง element =====
+                        let ltbody = document.getElementById('tbody');
+                        let cancel_modal = new bootstrap.Modal(document.getElementById('cancel_modal'));
+                        let cancel_staff_sel = document.getElementById('cancel_staff_sel');
+                        let current_lease = null;
+
+                        // ===== ฟังก์ชันตัวช่วย (เหมือน JOIN ตามรหัส) =====
+                        function get_stall(lease) { return stalls.find(s => s.stall_id === lease.stall_id); }
+                        function get_merchant(lease) { return merchants.find(m => m.merchant_id === lease.merchant_id); }
+                        function get_day(lease) { return market_days.find(d => d.market_day_id === lease.market_day_id); }
+                        function get_staff(lease) { return staff.find(s => s.staff_id === lease.staff_id); }
+
+                        function lfill_select(sel, items, value_of, text_of) {
+                            sel.innerHTML = '<option value="">-- เลือก --</option>';
+                            items.forEach(i => {
+                                let opt = document.createElement('option');
+                           opt.value = value_of(i);
+                                opt.textContent = text_of(i);
+                                sel.appendChild(opt);
+                            });
+                            sel.classList.remove('is-invalid');
+                        }
+
+                        // ===== วาดตาราง =====
+                        function lrender() {
+                            ltbody.innerHTML = '';
+                            leases.forEach(lease => {
+                                let tr = document.createElement('tr');
+                                tr.innerHTML = `<td>${lease.lease_id}</td><td>${get_stall(lease).stall_code}</td><td>${get_merchant(lease).merchant_name}</td><td>${get_day(lease).market_date}</td><td>${lease.rent_price}</td><td>${lease.deposit_amount}</td><td>${get_staff(lease).staff_name}</td>
+                                    <td><span class="badge ${lbadge_class[lease.status]}">${status_th[lease.status]}</span></td>`;
+
+                                let td = document.createElement('td');
+                                let btn = document.createElement('a');
+                                btn.className = 'btn btn-sm btn-warning';
+                                btn.textContent = 'ยกเลิกสัญญา';
+                                if (lease.status === 'cancelled') btn.classList.add('disabled');
+
+                                btn.onclick = function () {
+                                    current_lease = lease;
+                                    document.getElementById('cancel_id').textContent = lease.lease_id;
+                                    document.getElementById('cancel_stall').textContent = get_stall(lease).stall_code;
+                                    document.getElementById('cancel_refund').textContent = lease.deposit_amount;
+                                    lfill_select(cancel_staff_sel, staff, p => p.staff_id, p => p.staff_name);
+                                    cancel_modal.show();
+                                };
+
+                                td.appendChild(btn);
+                                tr.appendChild(td);
+                                ltbody.appendChild(tr);
+                            });
+                        }
+
+                        // ===== ปุ่มยืนยันยกเลิก =====
+                        document.getElementById('cancel_confirm_btn').onclick = function () {
+                            if (cancel_staff_sel.value === '') {
+                                cancel_staff_sel.classList.add('is-invalid');
+                                return;
+                            }
+                            console.log({
+                                lease_id: current_lease.lease_id,
+                                staff_id: cancel_staff_sel.value
+                            });
+                            current_lease.status = 'cancelled';
+                            current_lease.cancelled_at = new Date().toISOString();
+                            lrender();
+                            cancel_modal.hide();
+                        };
+
+                        lrender();
+    </script>
+</body>
+   
+</html>

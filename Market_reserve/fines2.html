@@ -1,0 +1,199 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <title>ค่าปรับ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!---แถบเลือเมนู-->
+    <nav class="navbar navbar-expand navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="main_menu.html">ตลาดนัด</a>
+            <div class="navbar-nav">
+                <a class="nav-link " href="main_menu.html">หน้าแรก</a>
+                <a class="nav-link " href="stalls2.html">แผงค้า</a>
+                <a class="nav-link" href="leases2.html">สัญญา</a>
+                <a class="nav-link active" href="fines2.html">ค่าปรับ</a>
+                <a class="nav-link" href="utilities2.html">ค่าน้ำไฟ</a>
+                <a class="nav-link" href="merchants2.html">ผู้ค้า</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <p class="mb-0">รายการค่าปรับ</p>
+            <button type="button" class="btn btn-danger" id="add_fine_btn">บันทึกค่าปรับ</button>
+        </div>
+
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>รหัสค่าปรับ</th>
+                    <th>สัญญา</th>
+                    <th>เหตุผล</th>
+                    <th>จำนวนเงิน (บาท)</th>
+                    <th>พนักงาน</th>
+                    <th>วันที่</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+    <div class="modal fade" id="fine_modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">บันทึกค่าปรับ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">สัญญา</label>
+                        <select id="lease_sel" class="form-select"></select>
+                        <div class="invalid-feedback">กรุณาเลือกสัญญา</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">เหตุผล</label>
+                        <input id="reason_input" type="text" maxlength="200" class="form-control">
+                        <div class="invalid-feedback">กรุณากรอกเหตุผล</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">จำนวนเงิน (บาท)</label>
+                        <input id="amount_input" type="number" class="form-control">
+                        <div class="invalid-feedback">จำนวนเงินต้องมากกว่า 0</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">พนักงานผู้บันทึก</label>
+                        <select id="fine_staff_sel" class="form-select"></select>
+                        <div class="invalid-feedback">กรุณาเลือกพนักงาน</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-danger" id="fine_confirm_btn">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+                        // ===== ข้อมูลหลอก =====
+                        let stalls = [
+                            { stall_id: 1, stall_code: 'A01' },
+                            { stall_id: 2, stall_code: 'A02' },
+                            { stall_id: 4, stall_code: 'A03' }
+                        ];
+                        let merchants = [
+                            { merchant_id: 1, merchant_name: 'พี่โด้' },
+                            { merchant_id: 2, merchant_name: 'พี่ซี่' },
+                            { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด' }
+                        ];
+                        let staff = [
+                            { staff_id: 1, staff_name: 'โบอิ้ง' },
+                            { staff_id: 2, staff_name: 'โบอิ้ง(ยิ้ม)' }
+                        ];
+                        let leases = [
+                            { lease_id: 1, stall_id: 1, merchant_id: 1, status: 'rented' },
+                            { lease_id: 2, stall_id: 2, merchant_id: 2, status: 'rented' },
+                            { lease_id: 3, stall_id: 4, merchant_id: 3, status: 'cancelled' }
+                        ];
+                        let fines = [
+                            { fine_id: 1, lease_id: 1, staff_id: 1, reason: 'ตั้งแผงล้ำเขต', amount: 100, fined_at: '2026-10-10T09:30:00' },
+                            { fine_id: 2, lease_id: 2, staff_id: 2, reason: 'ไม่ทำความสะอาดแผง', amount: 50, fined_at: '2026-10-10T17:00:00' }
+                        ];
+
+                        // ===== อ้างอิง element =====
+                        let ftbody = document.getElementById('tbody');
+                        let fine_modal = new bootstrap.Modal(document.getElementById('fine_modal'));
+                        let lease_sel = document.getElementById('lease_sel');
+                        let reason_input = document.getElementById('reason_input');
+                        let amount_input = document.getElementById('amount_input');
+                        let fine_staff_sel = document.getElementById('fine_staff_sel');
+
+                        // ===== ฟังก์ชันตัวช่วย (เหมือน JOIN ตามรหัส) =====
+                        function get_lease(fine) { return leases.find(l => l.lease_id === fine.lease_id); }
+                        function get_stall(lease) { return stalls.find(s => s.stall_id === lease.stall_id); }
+                        function get_merchant(lease) { return merchants.find(m => m.merchant_id === lease.merchant_id); }
+                        function get_staff(fine) { return staff.find(s => s.staff_id === fine.staff_id); }
+
+                        // ข้อความสัญญา เช่น "1 – A01 – พี่โด้"
+                        function lease_text(lease) {
+                            return `${lease.lease_id} – ${get_stall(lease).stall_code} – ${get_merchant(lease).merchant_name}`;
+                        }
+
+                        function ffill_select(sel, items, value_of, text_of) {
+                            sel.innerHTML = '<option value="">-- เลือก --</option>';
+                            items.forEach(i => {
+                                let opt = document.createElement('option');
+                                opt.value = value_of(i);
+                                opt.textContent = text_of(i);
+                                sel.appendChild(opt);
+                            });
+                            sel.classList.remove('is-invalid');
+                        }
+
+                        // ===== วาดตาราง =====
+                        function frender() {
+                            ftbody.innerHTML = '';
+                            fines.forEach(f => {
+                                let tr = document.createElement('tr');
+                                tr.innerHTML = `<td>${f.fine_id}</td><td>${lease_text(get_lease(f))}</td><td>${f.reason}</td><td>${f.amount}</td><td>${get_staff(f).staff_name}</td><td>${f.fined_at.slice(0, 10)}</td>`;
+                                ftbody.appendChild(tr);
+                            });
+                        }
+
+                        // ===== ปุ่มเปิดฟอร์ม =====
+                        document.getElementById('add_fine_btn').onclick = function () {
+                            ffill_select(lease_sel, leases, l => l.lease_id, l => lease_text(l));   // ถ้าจะให้เลือกเฉพาะสัญญาที่ยังใช้งาน ใช้ leases.filter(l => l.status === 'rented') แทน leases
+                            ffill_select(fine_staff_sel, staff, p => p.staff_id, p => p.staff_name);
+                            reason_input.value = '';
+                            amount_input.value = '';
+                            reason_input.classList.remove('is-invalid');
+                            amount_input.classList.remove('is-invalid');
+                            fine_modal.show();
+                        };
+
+                        // ===== ปุ่มบันทึก =====
+                        document.getElementById('fine_confirm_btn').onclick = function () {
+                            let ok = true;
+
+                            [lease_sel, fine_staff_sel].forEach(el => {
+                                if (el.value === '') { el.classList.add('is-invalid'); ok = false; }
+                                else el.classList.remove('is-invalid');
+                            });
+
+                            if (reason_input.value.trim() === '') { reason_input.classList.add('is-invalid'); ok = false; }
+                            else reason_input.classList.remove('is-invalid');
+
+                            if (Number(amount_input.value) <= 0) { amount_input.classList.add('is-invalid'); ok = false; }
+                            else amount_input.classList.remove('is-invalid');
+
+                            if (!ok) return;
+
+                            console.log({
+                                lease_id: lease_sel.value,
+                                reason: reason_input.value.trim(),
+                                amount: Number(amount_input.value),
+                                staff_id: fine_staff_sel.value
+                            });
+
+                            // จำลองการบันทึก (ของจริงฐานข้อมูลเป็นคนสร้างแถวและใส่ fined_at เอง)
+                            fines.push({
+                                fine_id: fines.length + 1,
+                                lease_id: Number(lease_sel.value),
+                                staff_id: Number(fine_staff_sel.value),
+                                reason: reason_input.value.trim(),
+                                amount: Number(amount_input.value),
+                                fined_at: new Date().toISOString()
+                            });
+                            frender();
+                            fine_modal.hide();
+                        };
+
+                        frender();
+    </script>
+</body>
+</html>

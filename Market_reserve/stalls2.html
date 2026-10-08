@@ -1,0 +1,275 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <title>แผงตลาดนัด</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+
+    <!---แถบเลือเมนู-->
+    <nav class="navbar navbar-expand navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="main_menu.html">ตลาดนัด</a>
+            <div class="navbar-nav">
+                <a class="nav-link " href="main_menu.html">หน้าแรก</a>
+                <a class="nav-link active" href="stalls2.html">แผงค้า</a>
+                <a class="nav-link" href="leases2.html">สัญญา</a>
+                <a class="nav-link" href="fines2.html">ค่าปรับ</a>
+                <a class="nav-link" href="utilities2.html">ค่าน้ำไฟ</a>
+                <a class="nav-link" href="merchants2.html">ผู้ค้า</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <p>หน้านี้จะแสดงรายการแผงค้า</p>
+        <div class="d-flex gap-2 mb-3">
+            <select id="day_filter" class="form-select w-auto"></select>
+            <select id="zone_filter" class="form-select w-auto">
+                <option value="">ทุกโซน</option>
+            </select>
+        </div>
+        <table class="table table-hover ">
+            <thead>
+                <tr>
+
+                    <th>รหัสแผง</th>
+                    <th>โซน</th>
+                    <th>ขนาดล็อก</th>
+                    <th>ค่าเช่า (บาท)</th>
+                    <th>สถานะ</th>
+                    <th></th>
+                </tr>
+
+            </thead>
+            <tbody id="tbody">
+            </tbody>
+
+        </table>
+    </div>
+    <!--*โครง Modal ก็อปมาจาก claude.ai-->
+    <div class="modal fade" id="book_modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">จองแผง <span id="modal_code"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-1">โซน: <span id="modal_zone"></span></p>
+                    <p class="mb-1">ค่าเช่า: <span id="modal_rent"></span> บาท</p>
+                    <p class="mb-1">เงินมัดจำ: <span id="modal_deposit"></span> บาท</p>
+                    <p class="fw-bold">ยอดรวมที่ต้องชำระ: <span id="modal_total"></span> บาท</p>
+
+                    <div class="mb-3">
+                        <label class="form-label">พ่อค้า</label>
+                        <select id="merchant_sel" class="form-select"></select>
+                        <div class="invalid-feedback">กรุณาเลือกพ่อค้า</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">วันตลาด</label>
+                        <select id="day_sel" class="form-select"></select>
+                        <div class="invalid-feedback">กรุณาเลือกวันตลาด</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">พนักงานผู้ทำรายการ</label>
+                        <select id="staff_sel" class="form-select"></select>
+                        <div class="invalid-feedback">กรุณาเลือกพนักงาน</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ยอดชำระ (บาท)</label>
+                        <input id="paid_input" type="number" class="form-control">
+                        <div class="invalid-feedback">ยอดชำระต้องเท่ากับยอดรวม</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-success" id="confirm_btn">ยืนยันการจอง</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+                        // ===== ข้อมูลหลอก: ชื่อคอลัมน์ตรงกับ schema จริง =====
+                        let zones = [
+                            { zone_id: 1, zone_name: 'โซนอาหาร', base_rent: 300, deposit_percent: 20 },
+                            { zone_id: 2, zone_name: 'โซนเสื้อผ้า', base_rent: 500, deposit_percent: 15 }
+                        ];
+                        let stalls = [
+                            { stall_id: 1, zone_id: 1, stall_code: 'A01', size_sqm: 12, status: 'available' },
+                            { stall_id: 2, zone_id: 1, stall_code: 'A02', size_sqm: 6, status: 'available' },
+                            { stall_id: 3, zone_id: 2, stall_code: 'B01', size_sqm: 9, status: 'maintenance' },
+                            { stall_id: 4, zone_id: 1, stall_code: 'A03', size_sqm: 6, status: 'available' }
+                        ];
+                        let market_days = [
+                            { market_day_id: 1, market_date: '2026-09-26', is_open: true },
+                            { market_day_id: 2, market_date: '2026-10-10', is_open: true },
+                            { market_day_id: 3, market_date: '2026-10-17', is_open: false },
+                            { market_day_id: 4, market_date: '2026-10-24', is_open: true }
+                        ];
+                        let leases = [
+                            { lease_id: 1, stall_id: 1, market_day_id: 2, status: 'rented' },
+                            { lease_id: 2, stall_id: 2, market_day_id: 2, status: 'rented' },
+                            { lease_id: 3, stall_id: 4, market_day_id: 4, status: 'cancelled' }
+                        ];
+                        let merchants = [
+                            { merchant_id: 1, merchant_name: 'พี่โด้' },
+                            { merchant_id: 2, merchant_name: 'พี่ซี่' },
+                            { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด' }
+                        ];
+                        let staff = [
+                            { staff_id: 1, staff_name: 'โบอิ้ง' },
+                            { staff_id: 2, staff_name: 'โบอิ้ง(ยิ้ม)' }
+                        ];
+
+                        let badge_class = {
+                            'ว่าง': 'bg-success',
+                            'ติดจอง': 'bg-secondary',
+                            'ปิดซ่อม': 'bg-danger',
+                            'เลือกวันตลาด': 'bg-light text-dark border'
+                        };
+
+                        // ===== อ้างอิง element =====
+                        let tbody = document.getElementById('tbody');
+                        let zone_filter = document.getElementById('zone_filter');
+                        let day_filter = document.getElementById('day_filter');
+                        let book_modal = new bootstrap.Modal(document.getElementById('book_modal'));
+                        let merchant_sel = document.getElementById('merchant_sel');
+                        let day_sel = document.getElementById('day_sel');
+                        let staff_sel = document.getElementById('staff_sel');
+                        let paid_input = document.getElementById('paid_input');
+
+                        let current_stall = null;
+                        let current_total = 0;
+
+                        // ===== ฟังก์ชันตัวช่วย =====
+                        function fill_select(sel, items, value_of, text_of) {
+                            sel.innerHTML = '<option value="">-- เลือก --</option>';
+                            items.forEach(i => {
+                                let opt = document.createElement('option');
+                                opt.value = value_of(i);
+                                opt.textContent = text_of(i);
+                                sel.appendChild(opt);
+                            });
+                            sel.classList.remove('is-invalid');
+                        }
+
+                        // หาโซนของแผง (เหมือน JOIN ตาม zone_id)
+                        function get_zone(stall) {
+                            return zones.find(z => z.zone_id === stall.zone_id);
+                        }
+
+                        // สถานะที่แสดง ขึ้นกับวันตลาดที่เลือก
+                        function get_status(stall) {
+                            if (stall.status === 'maintenance') return 'ปิดซ่อม';
+                            if (day_filter.value === '') return 'เลือกวันตลาด';
+                            let booked = leases.some(l =>
+                                l.stall_id === stall.stall_id &&
+                                l.market_day_id === Number(day_filter.value) &&
+                                l.status === 'rented');          // สัญญา cancelled ไม่นับ
+                            return booked ? 'ติดจอง' : 'ว่าง';
+                        }
+
+                        // ===== วาดตาราง =====
+                        function render() {
+                            tbody.innerHTML = '';
+                            let rows = stalls.filter(s => zone_filter.value === '' || s.zone_id === Number(zone_filter.value));
+                            rows.forEach(s => {
+                                let zone = get_zone(s);
+                                let status_text = get_status(s);
+
+                                let tr = document.createElement('tr');
+                                tr.innerHTML = `<td>${s.stall_code}</td><td>${zone.zone_name}</td><td>${s.size_sqm} ตร.ม.</td><td>${zone.base_rent}</td>
+                                  <td><span class="badge ${badge_class[status_text]}">${status_text}</span></td>`;
+
+                                let td = document.createElement('td');
+                                let btn = document.createElement('a');
+                                btn.className = 'btn btn-sm btn-warning';
+                                btn.textContent = 'จอง';
+                                if (status_text !== 'ว่าง') btn.classList.add('disabled');
+
+                                btn.onclick = function () {
+                                    current_stall = s;
+                                    let deposit = Math.round(zone.base_rent * zone.deposit_percent) / 100;
+                                    current_total = zone.base_rent + deposit;
+
+                                    document.getElementById('modal_code').textContent = s.stall_code;
+                                    document.getElementById('modal_zone').textContent = zone.zone_name;
+                                    document.getElementById('modal_rent').textContent = zone.base_rent;
+                                    document.getElementById('modal_deposit').textContent = deposit;
+                                    document.getElementById('modal_total').textContent = current_total;
+
+                                    fill_select(merchant_sel, merchants, m => m.merchant_id, m => m.merchant_name);
+                                    fill_select(day_sel, open_days(), d => d.market_day_id, d => d.market_date);
+                                    day_sel.value = day_filter.value;   // ใช้วันที่เลือกไว้ที่หน้าแผง
+                                    day_sel.disabled = true;            // ล็อกไว้ ให้ตรงกับสถานะที่เห็น
+                                    fill_select(staff_sel, staff, p => p.staff_id, p => p.staff_name);
+                                    paid_input.value = '';
+                                    paid_input.classList.remove('is-invalid');
+
+                                    book_modal.show();
+                                };
+
+                                td.appendChild(btn);
+                                tr.appendChild(td);
+                                tbody.appendChild(tr);
+                            });
+                        }
+
+                        // วันตลาดที่เปิดรับจองและยังไม่ผ่านมา
+                        function open_days() {
+                            let today = new Date().toLocaleDateString('sv-SE');   // ปี-เดือน-วัน
+                            return market_days.filter(d => d.is_open && d.market_date >= today);
+                        }
+
+                        // ===== เติมตัวกรอง =====
+                        fill_select(day_filter, open_days(), d => d.market_day_id, d => d.market_date);
+                        zones.forEach(z => {
+                            let opt = document.createElement('option');
+                            opt.value = z.zone_id;
+                            opt.textContent = z.zone_name;
+                            zone_filter.appendChild(opt);
+                        });
+                        zone_filter.addEventListener('change', render);
+                        day_filter.addEventListener('change', render);
+
+                        // ===== ปุ่มยืนยันการจอง =====
+                        document.getElementById('confirm_btn').onclick = function () {
+                            let ok = true;
+                            [merchant_sel, day_sel, staff_sel].forEach(el => {
+                                if (el.value === '') { el.classList.add('is-invalid'); ok = false; }
+                                else el.classList.remove('is-invalid');
+                            });
+                            if (Math.round(Number(paid_input.value) * 100) !== Math.round(current_total * 100)) {
+                                paid_input.classList.add('is-invalid'); ok = false;
+                            } else paid_input.classList.remove('is-invalid');
+
+                            if (!ok) return;
+
+                            console.log({
+                                stall_id: current_stall.stall_id,
+                                merchant_id: merchant_sel.value,
+                                market_day_id: day_sel.value,
+                                staff_id: staff_sel.value,
+                                paid_amount: Number(paid_input.value)
+                            });
+
+                            // จำลองการจอง: เพิ่มสัญญาใหม่ แล้ววาดตารางใหม่ (ของจริงฐานข้อมูลเป็นคนสร้าง)
+                            leases.push({
+                                lease_id: leases.length + 1,
+                                stall_id: current_stall.stall_id,
+                                market_day_id: Number(day_sel.value),
+                                status: 'rented'
+                            });
+                            render();
+                            book_modal.hide();
+                        };
+
+                        render();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,221 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <title>ผู้ค้า</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="main_menu.html">ตลาดนัด</a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="main_menu.html">หน้าแรก</a>
+                <a class="nav-link" href="stalls2.html">แผงค้า</a>
+                <a class="nav-link" href="leases2.html">สัญญา</a>
+                <a class="nav-link" href="fines2.html">ค่าปรับ</a>
+                <a class="nav-link" href="utilities2.html">ค่าน้ำไฟ</a>
+                <a class="nav-link active" href="merchants2.html">ผู้ค้า</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+            <input id="search_input" type="text" class="form-control w-auto" placeholder="ค้นหาชื่อหรือเบอร์โทร">
+            <button type="button" class="btn btn-primary" id="add_merchant_btn">เพิ่มผู้ค้า</button>
+        </div>
+
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>รหัส</th>
+                    <th>ชื่อผู้ค้า</th>
+                    <th>เบอร์โทร</th>
+                    <th>ประเภทสินค้า</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+        <p id="empty_msg" class="text-muted d-none">ไม่พบผู้ค้า</p>
+    </div>
+
+    <div class="modal fade" id="merchant_modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal_title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">ชื่อผู้ค้า</label>
+                        <input id="name_input" type="text" maxlength="100" class="form-control">
+                        <div class="invalid-feedback">กรุณากรอกชื่อผู้ค้า</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">เบอร์โทร</label>
+                        <input id="phone_input" type="text" maxlength="15" class="form-control">
+                        <div class="invalid-feedback" id="phone_feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ประเภทสินค้า (ไม่บังคับ)</label>
+                        <input id="goods_input" type="text" maxlength="50" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-primary" id="merchant_save_btn">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+// ===== ข้อมูลหลอก =====
+let merchants = [
+            { merchant_id: 1, merchant_name: 'พี่โด้', phone: '0811111111', goods_type: 'อาหารตามสั่ง' },
+            { merchant_id: 2, merchant_name: 'พี่ซี่', phone: '0822222222', goods_type: 'ของทอด' },
+            { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด', phone: '0833333333', goods_type: 'เสื้อผ้า' },
+            { merchant_id: 4, merchant_name: 'ป้าแดง', phone: '0844444444', goods_type: null }
+];
+
+// ใช้เช็กว่าผู้ค้าคนไหนมีสัญญาอยู่ (ลบไม่ได้)
+let leases = [
+            { lease_id: 1, merchant_id: 1 },
+            { lease_id: 2, merchant_id: 2 },
+            { lease_id: 3, merchant_id: 3 }
+];
+
+// ===== ประกาศตัวแปร =====
+let mbody = document.getElementById('tbody');
+let empty_msg = document.getElementById('empty_msg');
+let search_input = document.getElementById('search_input');
+let modal_el = document.getElementById('merchant_modal');
+let merchant_modal = new bootstrap.Modal(modal_el);
+let modal_title = document.getElementById('modal_title');
+let name_input = document.getElementById('name_input');
+let phone_input = document.getElementById('phone_input');
+let phone_feedback = document.getElementById('phone_feedback');
+let goods_input = document.getElementById('goods_input');
+let current_merchant = null;
+
+// ===== วาดตาราง =====
+function mrender() {
+            let keyword = search_input.value.trim().toLowerCase();
+            let rows = merchants.filter(m =>
+                m.merchant_name.toLowerCase().includes(keyword) || m.phone.includes(keyword));
+
+            empty_msg.classList.toggle('d-none', rows.length > 0);
+            mbody.innerHTML = '';
+
+            rows.forEach(mg => {
+                let has_lease = leases.some(l => l.merchant_id === mg.merchant_id);
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${mg.merchant_id}</td>
+                    <td>${mg.merchant_name}</td>
+                    <td>${mg.phone}</td>
+                    <td>${mg.goods_type !== null ? mg.goods_type : '-'}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-warning me-1" onclick="open_edit(${mg.merchant_id})">แก้ไข</button>
+                        <button class="btn btn-sm btn-danger" onclick="delete_merchant(${mg.merchant_id})"
+                            ${has_lease ? 'disabled title="มีสัญญาอยู่ ลบไม่ได้"' : ''}>ลบ</button>
+                    </td>`;
+                mbody.appendChild(tr);
+            });
+}
+
+// ===== เปิดฟอร์ม =====
+function clear_validation() {
+            name_input.classList.remove('is-invalid');
+            phone_input.classList.remove('is-invalid');
+}
+
+function open_add() {
+            current_merchant = null;
+            modal_title.textContent = 'เพิ่มผู้ค้า';
+            name_input.value = '';
+            phone_input.value = '';
+            goods_input.value = '';
+            clear_validation();
+            merchant_modal.show();
+}
+
+function open_edit(id) {
+            current_merchant = merchants.find(m => m.merchant_id === id);
+            modal_title.textContent = 'แก้ไขผู้ค้า';
+            name_input.value = current_merchant.merchant_name;
+            phone_input.value = current_merchant.phone;
+            goods_input.value = current_merchant.goods_type || '';
+            clear_validation();
+            merchant_modal.show();
+}
+
+// ===== บันทึก =====
+function save_merchant() {
+            let name = name_input.value.trim();
+            let phone = phone_input.value.trim();
+            let goods = goods_input.value.trim();
+            let ok = true;
+            clear_validation();
+
+            if (name === '') {
+                name_input.classList.add('is-invalid');
+                ok = false;
+            }
+
+            if (!/^0\d{9}$/.test(phone)) {
+                phone_feedback.textContent = 'กรุณากรอกเบอร์โทร 10 หลัก ขึ้นต้นด้วย 0';
+                phone_input.classList.add('is-invalid');
+                ok = false;
+            } else if (merchants.some(m => m.phone === phone &&
+                       (!current_merchant || m.merchant_id !== current_merchant.merchant_id))) {
+                phone_feedback.textContent = 'เบอร์โทรนี้ถูกใช้แล้ว';
+                phone_input.classList.add('is-invalid');
+                ok = false;
+            }
+
+            if (!ok) return;
+
+            if (current_merchant) {
+                current_merchant.merchant_name = name;
+                current_merchant.phone = phone;
+                current_merchant.goods_type = goods === '' ? null : goods;
+            } else {
+                let new_id = merchants.length ? Math.max(...merchants.map(m => m.merchant_id)) + 1 : 1;
+                merchants.push({
+                    merchant_id: new_id,
+                    merchant_name: name,
+                    phone: phone,
+                    goods_type: goods === '' ? null : goods
+                });
+            }
+
+            merchant_modal.hide();
+            mrender();
+}
+
+// ===== ลบ =====
+function delete_merchant(id) {
+            if (leases.some(l => l.merchant_id === id)) {
+                alert('ผู้ค้ารายนี้มีสัญญาอยู่ ลบไม่ได้');
+                return;
+            }
+            if (!confirm('ต้องการลบผู้ค้ารายนี้หรือไม่?')) return;
+            merchants = merchants.filter(m => m.merchant_id !== id);
+            mrender();
+}
+
+// ===== ผูก event =====
+document.getElementById('add_merchant_btn').addEventListener('click', open_add);
+document.getElementById('merchant_save_btn').addEventListener('click', save_merchant);
+search_input.addEventListener('input', mrender);
+
+// แสดงตารางตอนโหลดหน้า
+mrender();
+    </script>
+</body>
+</html>
