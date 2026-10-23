@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="utf-8" />
@@ -7,7 +7,7 @@
 </head>
 <body>
 
-    <!-- ===== แถบเมนู (ก๊อปบล็อกนี้ไปวางบนสุดของ <body> ในทุกหน้า) ===== -->
+    <!-- ===== แถบเมนู ===== -->
     <nav class="navbar navbar-expand navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="main_menu.html">ตลาดนัด</a>
@@ -23,7 +23,8 @@
     </nav>
 
     <div class="container mt-4">
-        <h5 class="mb-3">ภาพรวมรายได้และการเช่าแผง</h5>
+        <h5 class="mb-1">ภาพรวมรายได้และการเช่าแผง</h5>
+        <p class="text-muted small mb-3">อัตราการเช่า = จำนวนสัญญาเช่า ÷ (แผงที่ใช้งานได้ × จำนวนวันตลาดที่เปิด)</p>
 
         <div class="row g-3 mb-4">
             <div class="col-md-4">
@@ -45,8 +46,8 @@
             <div class="col-md-4">
                 <div class="card text-center">
                     <div class="card-body">
-                        <div class="text-muted">แผงที่ถูกเช่า</div>
-                        <div class="fs-3 fw-bold" id="sum_rented"></div>
+                        <div class="text-muted">จำนวนสัญญาเช่า</div>
+                        <div class="fs-3 fw-bold" id="sum_leases"></div>
                     </div>
                 </div>
             </div>
@@ -57,7 +58,8 @@
                 <tr>
                     <th>โซน</th>
                     <th>แผงทั้งหมด</th>
-                    <th>แผงที่ถูกเช่า</th>
+                    <th>แผงที่ใช้งานได้</th>
+                    <th>จำนวนสัญญาเช่า</th>
                     <th>อัตราการเช่า</th>
                     <th>รายได้ค่าเช่า</th>
                     <th>รายได้ค่าน้ำไฟ</th>
@@ -70,37 +72,60 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-                // ===== ข้อมูลหลอก: หน้าตาเหมือนผลลัพธ์ของ vw_market_zone_revenue =====
+                function esc(s) {
+                return String(s ?? '').replace(/[&<>"']/g,
+                c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                }
+               
+                // (ตอนต่อฐานข้อมูลจริง แทนอาร์เรย์นี้ด้วยผลลัพธ์จาก API)
                 let zone_revenue = [
-                    { zone_name: 'โซนอาหาร',    total_stalls: 3, rented_stalls: 2, rent_income: 600, utility_income: 180 },
-                    { zone_name: 'โซนเสื้อผ้า', total_stalls: 1, rented_stalls: 0, rent_income: 0,   utility_income: 0 }
+                    {
+                        zone_name: 'โซนอาหารปรุงสุก (Food Zone)',
+                        total_stalls_in_zone: 10, available_stalls_in_zone: 10,
+                        total_open_days: 42, total_available_stall_days: 420,
+                        rented_lease_count: 168, occupancy_rate_pct: 40.00,
+                        total_rent_revenue: 58800, total_utility_revenue: 9120, total_zone_revenue: 67920
+                    },
+                    {
+                        zone_name: 'โซนเสื้อผ้าแฟชั่น (Fashion Zone)',
+                        total_stalls_in_zone: 10, available_stalls_in_zone: 9,
+                        total_open_days: 42, total_available_stall_days: 378,
+                        rented_lease_count: 120, occupancy_rate_pct: 31.75,
+                        total_rent_revenue: 30000, total_utility_revenue: 2400, total_zone_revenue: 32400
+                    }
                 ];
 
                 let tbody = document.getElementById('tbody');
 
-                // ตัวช่วย: รวมค่าของฟิลด์ทุกแถว
+                // รวมค่าของคอลัมน์ทุกโซน
                 function sum_of(field) {
                     return zone_revenue.reduce((total, z) => total + z[field], 0);
+                }
+
+                // อัตราการเช่าจาก View อาจเป็น null (โซนที่ไม่มีแผงใช้งานได้) ให้แสดง "-"
+                function pct_text(value) {
+                    return value === null ? '-' : value.toFixed(2) + '%';
                 }
 
                 function render() {
                     tbody.innerHTML = '';
                     zone_revenue.forEach(z => {
-                        let occupancy = z.total_stalls === 0 ? 0 : z.rented_stalls / z.total_stalls * 100;
-                        let total = z.rent_income + z.utility_income;
                         let tr = document.createElement('tr');
-                        tr.innerHTML = `<td>${z.zone_name}</td><td>${z.total_stalls}</td><td>${z.rented_stalls}</td>
-                            <td>${occupancy.toFixed(1)}%</td>
-                            <td>${z.rent_income.toLocaleString()}</td><td>${z.utility_income.toLocaleString()}</td>
-                            <td>${total.toLocaleString()}</td>`;
+                        tr.innerHTML = `<td>${esc(z.zone_name)}</td><td>${z.total_stalls_in_zone}</td><td>${z.available_stalls_in_zone}</td>
+                            <td>${z.rented_lease_count}</td><td>${pct_text(z.occupancy_rate_pct)}</td>
+                            <td>${z.total_rent_revenue.toLocaleString()}</td><td>${z.total_utility_revenue.toLocaleString()}</td>
+                            <td>${z.total_zone_revenue.toLocaleString()}</td>`;
                         tbody.appendChild(tr);
                     });
 
-                    let all_stalls = sum_of('total_stalls');
-                    let all_rented = sum_of('rented_stalls');
-                    document.getElementById('sum_revenue').textContent = (sum_of('rent_income') + sum_of('utility_income')).toLocaleString();
-                    document.getElementById('sum_occupancy').textContent = (all_stalls === 0 ? 0 : all_rented / all_stalls * 100).toFixed(1) + '%';
-                    document.getElementById('sum_rented').textContent = all_rented + ' / ' + all_stalls;
+                    // การ์ดสรุป: อัตราการเช่ารวมคำนวณแบบถ่วงน้ำหนัก (สัญญาทั้งหมด ÷ แผง-วันที่ใช้งานได้ทั้งหมด)
+                    // ไม่เอาเปอร์เซ็นต์ของแต่ละโซนมาเฉลี่ย เพราะโซนมีขนาดไม่เท่ากัน
+                    let all_stall_days = sum_of('total_available_stall_days');
+                    let all_leases = sum_of('rented_lease_count');
+                    document.getElementById('sum_revenue').textContent = sum_of('total_zone_revenue').toLocaleString();
+                    document.getElementById('sum_occupancy').textContent =
+                        all_stall_days === 0 ? '-' : (all_leases * 100 / all_stall_days).toFixed(2) + '%';
+                    document.getElementById('sum_leases').textContent = all_leases.toLocaleString();
                 }
 
                 render();
