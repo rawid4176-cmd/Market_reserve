@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8" />
@@ -74,6 +74,10 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+                        function esc(s) {
+                        return String(s ?? '').replace(/[&<>"']/g,
+                        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                        }
                         // ===== ข้อมูลหลอก: ชื่อคอลัมน์ตรงกับ schema จริง =====
                         let stalls = [
                             { stall_id: 1, stall_code: 'A01' },
@@ -82,7 +86,7 @@
                             { stall_id: 4, stall_code: 'A03' }
                         ];
                         let merchants = [
-                            { merchant_id: 1, merchant_name: 'พี่โด้' },
+                            { merchant_id: 1, merchant_name: '<b>ทดสอบ</b>' },
                             { merchant_id: 2, merchant_name: 'พี่ซี่' },
                             { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด' }
                         ];
@@ -133,7 +137,7 @@
                             ltbody.innerHTML = '';
                             leases.forEach(lease => {
                                 let tr = document.createElement('tr');
-                                tr.innerHTML = `<td>${lease.lease_id}</td><td>${get_stall(lease).stall_code}</td><td>${get_merchant(lease).merchant_name}</td><td>${get_day(lease).market_date}</td><td>${lease.rent_price}</td><td>${lease.deposit_amount}</td><td>${get_staff(lease).staff_name}</td>
+                                tr.innerHTML = `<td>${lease.lease_id}</td><td>${esc(get_stall(lease).stall_code)}</td><td>${esc(get_merchant(lease).merchant_name)}</td><td>${get_day(lease).market_date}</td><td>${lease.rent_price}</td><td>${lease.deposit_amount}</td><td>${esc(get_staff(lease).staff_name)}</td>
                                     <td><span class="badge ${lbadge_class[lease.status]}">${status_th[lease.status]}</span></td>`;
 
                                 let td = document.createElement('td');
