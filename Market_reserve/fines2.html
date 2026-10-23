@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="utf-8" />
@@ -80,6 +80,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+                        function esc(s) {
+                        return String(s ?? '').replace(/[&<>"']/g,
+                        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                        }
                         // ===== ข้อมูลหลอก =====
                         let stalls = [
                             { stall_id: 1, stall_code: 'A01' },
@@ -140,7 +144,7 @@
                             ftbody.innerHTML = '';
                             fines.forEach(f => {
                                 let tr = document.createElement('tr');
-                                tr.innerHTML = `<td>${f.fine_id}</td><td>${lease_text(get_lease(f))}</td><td>${f.reason}</td><td>${f.amount}</td><td>${get_staff(f).staff_name}</td><td>${f.fined_at.slice(0, 10)}</td>`;
+                                tr.innerHTML = `<td>${f.fine_id}</td><td>${esc(lease_text(get_lease(f)))}</td><td>${esc(f.reason)}</td><td>${f.amount}</td><td>${esc(get_staff(f).staff_name)}</td><td>${f.fined_at.slice(0, 10)}</td>`;
                                 ftbody.appendChild(tr);
                             });
                         }
