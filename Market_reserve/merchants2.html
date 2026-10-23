@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="utf-8" />
@@ -40,7 +40,7 @@
         </table>
         <p id="empty_msg" class="text-muted d-none">ไม่พบผู้ค้า</p>
     </div>
-
+    <!--moda พ่อค้า-->
     <div class="modal fade" id="merchant_modal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -74,6 +74,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+
 // ===== ข้อมูลหลอก =====
 let merchants = [
             { merchant_id: 1, merchant_name: 'พี่โด้', phone: '0811111111', goods_type: 'อาหารตามสั่ง' },
@@ -81,6 +82,10 @@ let merchants = [
             { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด', phone: '0833333333', goods_type: 'เสื้อผ้า' },
             { merchant_id: 4, merchant_name: 'ป้าแดง', phone: '0844444444', goods_type: null }
 ];
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g,
+        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 // ใช้เช็กว่าผู้ค้าคนไหนมีสัญญาอยู่ (ลบไม่ได้)
 let leases = [
@@ -102,6 +107,7 @@ let phone_feedback = document.getElementById('phone_feedback');
 let goods_input = document.getElementById('goods_input');
 let current_merchant = null;
 
+
 // ===== วาดตาราง =====
 function mrender() {
             let keyword = search_input.value.trim().toLowerCase();
@@ -115,10 +121,10 @@ function mrender() {
                 let has_lease = leases.some(l => l.merchant_id === mg.merchant_id);
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${mg.merchant_id}</td>
-                    <td>${mg.merchant_name}</td>
-                    <td>${mg.phone}</td>
-                    <td>${mg.goods_type !== null ? mg.goods_type : '-'}</td>
+                    <td>${esc(mg.merchant_id)}</td>
+                    <td>${esc(mg.merchant_name)}</td>
+                    <td>${esc(mg.phone)}</td>
+                    <td>${esc(mg.goods_type || '-')}</td>
                     <td class="text-end">
                         <button class="btn btn-sm btn-warning me-1" onclick="open_edit(${mg.merchant_id})">แก้ไข</button>
                         <button class="btn btn-sm btn-danger" onclick="delete_merchant(${mg.merchant_id})"
