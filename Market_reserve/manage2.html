@@ -150,307 +150,309 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>function esc(s) {
-            return String(s ?? '').replace(/[&<>"']/g,
-                c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        }
+    <script>
+                function esc(s) {
+                    return String(s ?? '').replace(/[&<>"']/g,
+                        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                }
 
-        // ===== ข้อมูล: โหลดจากฐานข้อมูลผ่าน StallAdmin.ashx =====
-        let today = '';   // วันนี้ตามเวลาของ SQL Server (yyyy-MM-dd) ใช้เทียบว่าวันตลาดผ่านมาแล้วหรือยัง
-        let zones = [];   // zone_id, zone_name
-        let stalls = [];  // stall_id, zone_id, stall_code, size_sqm, status, lease_count
-        let days = [];    // market_day_id, market_date, is_open (1/0), lease_count
+                // ===== ข้อมูล: โหลดจากฐานข้อมูลผ่าน StallAdmin.ashx =====
+                let today = '';   // วันนี้ตามเวลาของ SQL Server (yyyy-MM-dd) ใช้เทียบว่าวันตลาดผ่านมาแล้วหรือยัง
+                let zones = [];   // zone_id, zone_name
+                let stalls = [];  // stall_id, zone_id, stall_code, size_sqm, status, lease_count
+                let days = [];    // market_day_id, market_date, is_open (1/0), lease_count
 
-        let status_th = { available: 'พร้อมใช้งาน', maintenance: 'ปิดซ่อมบำรุง' };
-        let status_badge = { available: 'bg-success', maintenance: 'bg-danger' };
+                let status_th = { available: 'พร้อมใช้งาน', maintenance: 'ปิดซ่อมบำรุง' };
+                let status_badge = { available: 'bg-success', maintenance: 'bg-danger' };
 
-        // ===== อ้างอิง element =====
-        let msg = document.getElementById('msg');
-        let load_error = document.getElementById('load_error');
-        let zone_filter = document.getElementById('zone_filter');
-        let stall_tbody = document.getElementById('stall_tbody');
-        let day_tbody = document.getElementById('day_tbody');
+                // ===== อ้างอิง element =====
+                let msg = document.getElementById('msg');
+                let load_error = document.getElementById('load_error');
+                let zone_filter = document.getElementById('zone_filter');
+                let stall_tbody = document.getElementById('stall_tbody');
+                let day_tbody = document.getElementById('day_tbody');
 
-        let stall_modal = new bootstrap.Modal(document.getElementById('stall_modal'));
-        let stall_modal_title = document.getElementById('stall_modal_title');
-        let stall_modal_error = document.getElementById('stall_modal_error');
-        let stall_zone_sel = document.getElementById('stall_zone_sel');
-        let zone_locked_hint = document.getElementById('zone_locked_hint');
-        let stall_code_input = document.getElementById('stall_code_input');
-        let stall_size_input = document.getElementById('stall_size_input');
-        let stall_status_sel = document.getElementById('stall_status_sel');
-        let stall_save_btn = document.getElementById('stall_save_btn');
+                let stall_modal = new bootstrap.Modal(document.getElementById('stall_modal'));
+                let stall_modal_title = document.getElementById('stall_modal_title');
+                let stall_modal_error = document.getElementById('stall_modal_error');
+                let stall_zone_sel = document.getElementById('stall_zone_sel');
+                let zone_locked_hint = document.getElementById('zone_locked_hint');
+                let stall_code_input = document.getElementById('stall_code_input');
+                let stall_size_input = document.getElementById('stall_size_input');
+                let stall_status_sel = document.getElementById('stall_status_sel');
+                let stall_save_btn = document.getElementById('stall_save_btn');
 
-        let day_modal = new bootstrap.Modal(document.getElementById('day_modal'));
-        let day_modal_error = document.getElementById('day_modal_error');
-        let day_date_input = document.getElementById('day_date_input');
-        let day_date_feedback = document.getElementById('day_date_feedback');
-        let day_open_chk = document.getElementById('day_open_chk');
-        let day_save_btn = document.getElementById('day_save_btn');
+                let day_modal = new bootstrap.Modal(document.getElementById('day_modal'));
+                let day_modal_error = document.getElementById('day_modal_error');
+                let day_date_input = document.getElementById('day_date_input');
+                let day_date_feedback = document.getElementById('day_date_feedback');
+                let day_open_chk = document.getElementById('day_open_chk');
+                let day_save_btn = document.getElementById('day_save_btn');
 
-        let current_stall = null;   // null = กำลังเพิ่ม, มีค่า = กำลังแก้ไข
+                let current_stall = null;   // null = กำลังเพิ่ม, มีค่า = กำลังแก้ไข
 
-        function show_msg(type, text) {
-            msg.className = 'alert alert-' + type;
-            msg.textContent = text;
-        }
+                function show_msg(type, text) {
+                    msg.className = 'alert alert-' + type;
+                    msg.textContent = text;
+                }
 
-        // ส่งคำสั่ง (เพิ่ม/แก้ไข/ลบ) ไปที่ handler แล้วรับผลเป็น JSON
-        function call(payload) {
-            return fetch('StallAdmin.ashx', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-                .then(r => r.json())
-                .catch(() => ({ ok: false, message: 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ' }));
-        }
+                // ส่งคำสั่ง (เพิ่ม/แก้ไข/ลบ) ไปที่ handler แล้วรับผลเป็น JSON
+                function call(payload) {
+                    return fetch('StallAdmin.ashx', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                        .then(r => r.json())
+                        .catch(() => ({ ok: false, message: 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ' }));
+                }
 
-        function zone_name_of(zone_id) {
-            let z = zones.find(x => x.zone_id === zone_id);
-            return z ? z.zone_name : '-';
-        }
+                function zone_name_of(zone_id) {
+                    let z = zones.find(x => x.zone_id === zone_id);
+                    return z ? z.zone_name : '-';
+                }
 
-        // ===== โหลดข้อมูลจากฐานข้อมูล =====
-        function load_data() {
-            let keep_zone = zone_filter.value;   // จำตัวกรองเดิมไว้ ไม่ให้เด้งกลับหลังโหลดใหม่
+                // ===== โหลดข้อมูลจากฐานข้อมูล =====
+                function load_data() {
+                    let keep_zone = zone_filter.value;   // จำตัวกรองเดิมไว้ ไม่ให้เด้งกลับหลังโหลดใหม่
 
-            fetch('StallAdmin.ashx')
-                .then(r => {
-                    if (!r.ok) throw new Error('โหลดไม่สำเร็จ');
-                    return r.json();
-                })
-                .then(d => {
-                    today = d.today;
-                    zones = d.zones;
-                    stalls = d.stalls;
-                    days = d.days;
-                    load_error.classList.add('d-none');
+                    fetch('StallAdmin.ashx')
+                        .then(r => {
+                            if (!r.ok) throw new Error('โหลดไม่สำเร็จ');
+                            return r.json();
+                        })
+                        .then(d => {
+                            today = d.today;
+                            zones = d.zones;
+                            stalls = d.stalls;
+                            days = d.days;
+                            load_error.classList.add('d-none');
 
-                    zone_filter.innerHTML = '<option value="">ทุกโซน</option>';
+                            zone_filter.innerHTML = '<option value="">ทุกโซน</option>';
+                            zones.forEach(z => {
+                                let opt = document.createElement('option');
+                                opt.value = z.zone_id;
+                                opt.textContent = z.zone_name;
+                                zone_filter.appendChild(opt);
+                            });
+                            if (zones.some(z => String(z.zone_id) === keep_zone)) zone_filter.value = keep_zone;
+
+                            render_stalls();
+                            render_days();
+                        })
+                        .catch(() => load_error.classList.remove('d-none'));
+                }
+
+                // ===================== แผงค้า =====================
+                function render_stalls() {
+                    stall_tbody.innerHTML = '';
+                    let rows = stalls.filter(s => zone_filter.value === '' || s.zone_id === Number(zone_filter.value));
+
+                    rows.forEach(s => {
+                        let has_lease = s.lease_count > 0;
+                        let tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${esc(s.stall_code)}</td>
+                            <td>${esc(zone_name_of(s.zone_id))}</td>
+                            <td>${s.size_sqm ?? '-'} ${s.size_sqm === null ? '' : 'ตร.ม.'}</td>
+                            <td><span class="badge ${status_badge[s.status]}">${status_th[s.status]}</span></td>
+                            <td>${s.lease_count}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-warning me-1" onclick="open_edit_stall(${s.stall_id})">แก้ไข</button>
+                                <button class="btn btn-sm btn-danger" onclick="delete_stall(${s.stall_id})"
+                                    ${has_lease ? 'disabled title="มีสัญญาอยู่ ลบไม่ได้"' : ''}>ลบ</button>
+                            </td>`;
+                        stall_tbody.appendChild(tr);
+                    });
+                }
+
+                function clear_stall_validation() {
+                    [stall_zone_sel, stall_code_input, stall_size_input].forEach(el => el.classList.remove('is-invalid'));
+                    stall_modal_error.classList.add('d-none');
+                }
+
+                function fill_zone_select() {
+                    stall_zone_sel.innerHTML = '<option value="">-- เลือก --</option>';
                     zones.forEach(z => {
                         let opt = document.createElement('option');
                         opt.value = z.zone_id;
                         opt.textContent = z.zone_name;
-                        zone_filter.appendChild(opt);
+                        stall_zone_sel.appendChild(opt);
                     });
-                    if (zones.some(z => String(z.zone_id) === keep_zone)) zone_filter.value = keep_zone;
-
-                    render_stalls();
-                    render_days();
-                })
-                .catch(() => load_error.classList.remove('d-none'));
-        }
-
-        // ===================== แผงค้า =====================
-        function render_stalls() {
-            stall_tbody.innerHTML = '';
-            let rows = stalls.filter(s => zone_filter.value === '' || s.zone_id === Number(zone_filter.value));
-
-            rows.forEach(s => {
-                let has_lease = s.lease_count > 0;
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${esc(s.stall_code)}</td>
-                    <td>${esc(zone_name_of(s.zone_id))}</td>
-                    <td>${s.size_sqm ?? '-'} ${s.size_sqm === null ? '' : 'ตร.ม.'}</td>
-                    <td><span class="badge ${status_badge[s.status]}">${status_th[s.status]}</span></td>
-                    <td>${s.lease_count}</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-warning me-1" onclick="open_edit_stall(${s.stall_id})">แก้ไข</button>
-                        <button class="btn btn-sm btn-danger" onclick="delete_stall(${s.stall_id})"
-                            ${has_lease ? 'disabled title="มีสัญญาอยู่ ลบไม่ได้"' : ''}>ลบ</button>
-                    </td>`;
-                stall_tbody.appendChild(tr);
-            });
-        }
-
-        function clear_stall_validation() {
-            [stall_zone_sel, stall_code_input, stall_size_input].forEach(el => el.classList.remove('is-invalid'));
-            stall_modal_error.classList.add('d-none');
-        }
-
-        function fill_zone_select() {
-            stall_zone_sel.innerHTML = '<option value="">-- เลือก --</option>';
-            zones.forEach(z => {
-                let opt = document.createElement('option');
-                opt.value = z.zone_id;
-                opt.textContent = z.zone_name;
-                stall_zone_sel.appendChild(opt);
-            });
-        }
-
-        function open_add_stall() {
-            current_stall = null;
-            stall_modal_title.textContent = 'เพิ่มแผงค้า';
-            fill_zone_select();
-            stall_zone_sel.value = zone_filter.value;   // ใช้โซนที่กรองอยู่เป็นค่าเริ่มต้น
-            stall_zone_sel.disabled = false;
-            zone_locked_hint.classList.add('d-none');
-            stall_code_input.value = '';
-            stall_size_input.value = '';
-            stall_status_sel.value = 'available';
-            clear_stall_validation();
-            stall_modal.show();
-        }
-
-        function open_edit_stall(id) {
-            current_stall = stalls.find(s => s.stall_id === id);
-            stall_modal_title.textContent = 'แก้ไขแผงค้า';
-            fill_zone_select();
-            stall_zone_sel.value = current_stall.zone_id;
-            // แผงที่มีสัญญาแล้ว ล็อกไม่ให้เปลี่ยนโซน (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
-            let locked = current_stall.lease_count > 0;
-            stall_zone_sel.disabled = locked;
-            zone_locked_hint.classList.toggle('d-none', !locked);
-            stall_code_input.value = current_stall.stall_code;
-            stall_size_input.value = current_stall.size_sqm ?? '';
-            stall_status_sel.value = current_stall.status;
-            clear_stall_validation();
-            stall_modal.show();
-        }
-
-        function save_stall() {
-            let code = stall_code_input.value.trim();
-            let size = stall_size_input.value.trim();
-            let ok = true;
-            clear_stall_validation();
-
-            if (stall_zone_sel.value === '') { stall_zone_sel.classList.add('is-invalid'); ok = false; }
-            if (code === '' || code.length > 10) { stall_code_input.classList.add('is-invalid'); ok = false; }
-            if (size !== '' && (Number(size) <= 0 || Number(size) > 999.99)) { stall_size_input.classList.add('is-invalid'); ok = false; }
-            if (!ok) return;
-
-            stall_save_btn.disabled = true;
-            call({
-                action: current_stall ? 'edit_stall' : 'add_stall',
-                stall_id: current_stall ? current_stall.stall_id : 0,
-                zone_id: Number(stall_zone_sel.value),
-                stall_code: code,
-                size_sqm: size === '' ? null : Number(size),
-                status: stall_status_sel.value
-            }).then(res => {
-                stall_save_btn.disabled = false;
-                if (!res.ok) {
-                    stall_modal_error.textContent = res.message;   // เช่น รหัสแผงนี้ถูกใช้แล้ว
-                    stall_modal_error.classList.remove('d-none');
-                    return;
                 }
-                stall_modal.hide();
-                show_msg('success', current_stall ? 'แก้ไขแผงเรียบร้อย' : 'เพิ่มแผงเรียบร้อย');
-                load_data();
-            });
-        }
 
-        function delete_stall(id) {
-            let s = stalls.find(x => x.stall_id === id);
-            if (!confirm(`ต้องการลบแผง ${s.stall_code} หรือไม่?`)) return;
-
-            call({ action: 'delete_stall', stall_id: id }).then(res => {
-                if (!res.ok) { show_msg('danger', res.message); return; }
-                show_msg('success', `ลบแผง ${s.stall_code} แล้ว`);
-                load_data();
-            });
-        }
-
-        // ===================== วันตลาด =====================
-        function render_days() {
-            day_tbody.innerHTML = '';
-            days.forEach(d => {
-                let is_past = d.market_date < today;   // เทียบข้อความ yyyy-MM-dd ได้ตรงๆ
-                let status_html = is_past
-                    ? '<span class="badge bg-light text-dark border">ผ่านไปแล้ว</span>'
-                    : (d.is_open === 1
-                        ? '<span class="badge bg-success">เปิดรับจอง</span>'
-                        : '<span class="badge bg-secondary">ปิดรับจอง</span>');
-
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${esc(d.market_date)}</td>
-                    <td>${status_html}</td>
-                    <td>${d.lease_count}</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-warning me-1" onclick="toggle_day(${d.market_day_id})"
-                            ${is_past ? 'disabled title="วันที่ผ่านมาแล้วเปลี่ยนไม่ได้"' : ''}>${d.is_open === 1 ? 'ปิดรับจอง' : 'เปิดรับจอง'}</button>
-                        <button class="btn btn-sm btn-danger" onclick="delete_day(${d.market_day_id})"
-                            ${(is_past || d.lease_count > 0) ? 'disabled title="ลบไม่ได้ (ผ่านมาแล้วหรือมีสัญญาอยู่)"' : ''}>ลบ</button>
-                    </td>`;
-                day_tbody.appendChild(tr);
-            });
-        }
-
-        function open_add_day() {
-            day_date_input.value = '';
-            day_date_input.min = today;   // กันเลือกวันที่ผ่านมาแล้ว (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
-            day_open_chk.checked = true;
-            day_date_input.classList.remove('is-invalid');
-            day_modal_error.classList.add('d-none');
-            day_modal.show();
-        }
-
-        function save_day() {
-            day_date_input.classList.remove('is-invalid');
-            day_modal_error.classList.add('d-none');
-
-            let date = day_date_input.value;   // รูปแบบ yyyy-MM-dd
-            if (date === '') {
-                day_date_feedback.textContent = 'กรุณาเลือกวันที่';
-                day_date_input.classList.add('is-invalid');
-                return;
-            }
-            if (date < today) {
-                day_date_feedback.textContent = 'เพิ่มได้เฉพาะวันตลาดตั้งแต่วันนี้เป็นต้นไป';
-                day_date_input.classList.add('is-invalid');
-                return;
-            }
-            if (days.some(d => d.market_date === date)) {
-                day_date_feedback.textContent = 'มีวันตลาดวันนี้อยู่ในระบบแล้ว';
-                day_date_input.classList.add('is-invalid');
-                return;
-            }
-
-            day_save_btn.disabled = true;
-            call({ action: 'add_day', market_date: date, is_open: day_open_chk.checked }).then(res => {
-                day_save_btn.disabled = false;
-                if (!res.ok) {
-                    day_modal_error.textContent = res.message;
-                    day_modal_error.classList.remove('d-none');
-                    return;
+                function open_add_stall() {
+                    current_stall = null;
+                    stall_modal_title.textContent = 'เพิ่มแผงค้า';
+                    fill_zone_select();
+                    stall_zone_sel.value = zone_filter.value;   // ใช้โซนที่กรองอยู่เป็นค่าเริ่มต้น
+                    stall_zone_sel.disabled = false;
+                    zone_locked_hint.classList.add('d-none');
+                    stall_code_input.value = '';
+                    stall_size_input.value = '';
+                    stall_status_sel.value = 'available';
+                    clear_stall_validation();
+                    stall_modal.show();
                 }
-                day_modal.hide();
-                show_msg('success', `เพิ่มวันตลาด ${date} เรียบร้อย`);
+
+                function open_edit_stall(id) {
+                    current_stall = stalls.find(s => s.stall_id === id);
+                    stall_modal_title.textContent = 'แก้ไขแผงค้า';
+                    fill_zone_select();
+                    stall_zone_sel.value = current_stall.zone_id;
+                    // แผงที่มีสัญญาแล้ว ล็อกไม่ให้เปลี่ยนโซน (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
+                    let locked = current_stall.lease_count > 0;
+                    stall_zone_sel.disabled = locked;
+                    zone_locked_hint.classList.toggle('d-none', !locked);
+                    stall_code_input.value = current_stall.stall_code;
+                    stall_size_input.value = current_stall.size_sqm ?? '';
+                    stall_status_sel.value = current_stall.status;
+                    clear_stall_validation();
+                    stall_modal.show();
+                }
+
+                function save_stall() {
+                    let code = stall_code_input.value.trim();
+                    let size = stall_size_input.value.trim();
+                    let ok = true;
+                    clear_stall_validation();
+
+                    if (stall_zone_sel.value === '') { stall_zone_sel.classList.add('is-invalid'); ok = false; }
+                    if (code === '' || code.length > 10) { stall_code_input.classList.add('is-invalid'); ok = false; }
+                    if (size !== '' && (Number(size) <= 0 || Number(size) > 999.99)) { stall_size_input.classList.add('is-invalid'); ok = false; }
+                    if (!ok) return;
+
+                    stall_save_btn.disabled = true;
+                    call({
+                        action: current_stall ? 'edit_stall' : 'add_stall',
+                        stall_id: current_stall ? current_stall.stall_id : 0,
+                        zone_id: Number(stall_zone_sel.value),
+                        stall_code: code,
+                        size_sqm: size === '' ? null : Number(size),
+                        status: stall_status_sel.value
+                    }).then(res => {
+                        stall_save_btn.disabled = false;
+                        if (!res.ok) {
+                            stall_modal_error.textContent = res.message;   // เช่น รหัสแผงนี้ถูกใช้แล้ว
+                            stall_modal_error.classList.remove('d-none');
+                            return;
+                        }
+                        stall_modal.hide();
+                        show_msg('success', current_stall ? 'แก้ไขแผงเรียบร้อย' : 'เพิ่มแผงเรียบร้อย');
+                        load_data();
+                    });
+                }
+
+                function delete_stall(id) {
+                    let s = stalls.find(x => x.stall_id === id);
+                    if (!confirm(`ต้องการลบแผง ${s.stall_code} หรือไม่?`)) return;
+
+                    call({ action: 'delete_stall', stall_id: id }).then(res => {
+                        if (!res.ok) { show_msg('danger', res.message); return; }
+                        show_msg('success', `ลบแผง ${s.stall_code} แล้ว`);
+                        load_data();
+                    });
+                }
+
+                // ===================== วันตลาด =====================
+                function render_days() {
+                    day_tbody.innerHTML = '';
+                    days.forEach(d => {
+                        let is_past = d.market_date < today;   // เทียบข้อความ yyyy-MM-dd ได้ตรงๆ
+                        let status_html = is_past
+                            ? '<span class="badge bg-light text-dark border">ผ่านไปแล้ว</span>'
+                            : (d.is_open === 1
+                                ? '<span class="badge bg-success">เปิดรับจอง</span>'
+                                : '<span class="badge bg-secondary">ปิดรับจอง</span>');
+
+                        let tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${esc(d.market_date)}</td>
+                            <td>${status_html}</td>
+                            <td>${d.lease_count}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-warning me-1" onclick="toggle_day(${d.market_day_id})"
+                                    ${is_past ? 'disabled title="วันที่ผ่านมาแล้วเปลี่ยนไม่ได้"' : ''}>${d.is_open === 1 ? 'ปิดรับจอง' : 'เปิดรับจอง'}</button>
+                                <button class="btn btn-sm btn-danger" onclick="delete_day(${d.market_day_id})"
+                                    ${(is_past || d.lease_count > 0) ? 'disabled title="ลบไม่ได้ (ผ่านมาแล้วหรือมีสัญญาอยู่)"' : ''}>ลบ</button>
+                            </td>`;
+                        day_tbody.appendChild(tr);
+                    });
+                }
+
+                function open_add_day() {
+                    day_date_input.value = '';
+                    day_date_input.min = today;   // กันเลือกวันที่ผ่านมาแล้ว (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
+                    day_open_chk.checked = true;
+                    day_date_input.classList.remove('is-invalid');
+                    day_modal_error.classList.add('d-none');
+                    day_modal.show();
+                }
+
+                function save_day() {
+                    day_date_input.classList.remove('is-invalid');
+                    day_modal_error.classList.add('d-none');
+
+                    let date = day_date_input.value;   // รูปแบบ yyyy-MM-dd
+                    if (date === '') {
+                        day_date_feedback.textContent = 'กรุณาเลือกวันที่';
+                        day_date_input.classList.add('is-invalid');
+                        return;
+                    }
+                    if (date < today) {
+                        day_date_feedback.textContent = 'เพิ่มได้เฉพาะวันตลาดตั้งแต่วันนี้เป็นต้นไป';
+                        day_date_input.classList.add('is-invalid');
+                        return;
+                    }
+                    if (days.some(d => d.market_date === date)) {
+                        day_date_feedback.textContent = 'มีวันตลาดวันนี้อยู่ในระบบแล้ว';
+                        day_date_input.classList.add('is-invalid');
+                        return;
+                    }
+
+                    day_save_btn.disabled = true;
+                    call({ action: 'add_day', market_date: date, is_open: day_open_chk.checked }).then(res => {
+                        day_save_btn.disabled = false;
+                        if (!res.ok) {
+                            day_modal_error.textContent = res.message;
+                            day_modal_error.classList.remove('d-none');
+                            return;
+                        }
+                        day_modal.hide();
+                        show_msg('success', `เพิ่มวันตลาด ${date} เรียบร้อย`);
+                        load_data();
+                    });
+                }
+
+                function toggle_day(id) {
+                    let d = days.find(x => x.market_day_id === id);
+                    let want_open = d.is_open !== 1;
+                    call({ action: 'set_day_open', market_day_id: id, is_open: want_open }).then(res => {
+                        if (!res.ok) { show_msg('danger', res.message); return; }
+                        show_msg('success', `${want_open ? 'เปิด' : 'ปิด'}รับจองวันที่ ${d.market_date} แล้ว`);
+                        load_data();
+                    });
+                }
+
+                function delete_day(id) {
+                    let d = days.find(x => x.market_day_id === id);
+                    if (!confirm(`ต้องการลบวันตลาด ${d.market_date} หรือไม่?`)) return;
+
+                    call({ action: 'delete_day', market_day_id: id }).then(res => {
+                        if (!res.ok) { show_msg('danger', res.message); return; }
+                        show_msg('success', `ลบวันตลาด ${d.market_date} แล้ว`);
+                        load_data();
+                    });
+                }
+
+                // ===== ผูก event =====
+                document.getElementById('add_stall_btn').addEventListener('click', open_add_stall);
+                stall_save_btn.addEventListener('click', save_stall);
+                zone_filter.addEventListener('change', render_stalls);
+                document.getElementById('add_day_btn').addEventListener('click', open_add_day);
+                day_save_btn.addEventListener('click', save_day);
+
                 load_data();
-            });
-        }
-
-        function toggle_day(id) {
-            let d = days.find(x => x.market_day_id === id);
-            let want_open = d.is_open !== 1;
-            call({ action: 'set_day_open', market_day_id: id, is_open: want_open }).then(res => {
-                if (!res.ok) { show_msg('danger', res.message); return; }
-                show_msg('success', `${want_open ? 'เปิด' : 'ปิด'}รับจองวันที่ ${d.market_date} แล้ว`);
-                load_data();
-            });
-        }
-
-        function delete_day(id) {
-            let d = days.find(x => x.market_day_id === id);
-            if (!confirm(`ต้องการลบวันตลาด ${d.market_date} หรือไม่?`)) return;
-
-            call({ action: 'delete_day', market_day_id: id }).then(res => {
-                if (!res.ok) { show_msg('danger', res.message); return; }
-                show_msg('success', `ลบวันตลาด ${d.market_date} แล้ว`);
-                load_data();
-            });
-        }
-
-        // ===== ผูก event =====
-        document.getElementById('add_stall_btn').addEventListener('click', open_add_stall);
-        stall_save_btn.addEventListener('click', save_stall);
-        zone_filter.addEventListener('change', render_stalls);
-        document.getElementById('add_day_btn').addEventListener('click', open_add_day);
-        day_save_btn.addEventListener('click', save_day);
-
-        load_data();</script>
+    </script>
 </body>
 </html>
