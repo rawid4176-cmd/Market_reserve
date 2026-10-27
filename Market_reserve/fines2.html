@@ -39,6 +39,7 @@
             </thead>
             <tbody id="tbody"></tbody>
         </table>
+        <p id="load_error" class="text-danger d-none">โหลดข้อมูลค่าปรับไม่สำเร็จ</p>
     </div>
 
     <div class="modal fade" id="fine_modal" tabindex="-1">
@@ -51,6 +52,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">สัญญา</label>
+                        <input id="lease_filter" type="text" class="form-control mb-2" placeholder="พิมพ์ค้นหา เช่น รหัสแผง ชื่อผู้ค้า หรือวันที่">
                         <select id="lease_sel" class="form-select"></select>
                         <div class="invalid-feedback">กรุณาเลือกสัญญา</div>
                     </div>
@@ -61,7 +63,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">จำนวนเงิน (บาท)</label>
-                        <input id="amount_input" type="number" class="form-control">
+                        <input id="amount_input" type="number" step="0.01" class="form-control">
                         <div class="invalid-feedback">จำนวนเงินต้องมากกว่า 0</div>
                     </div>
                     <div class="mb-3">
@@ -80,120 +82,137 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-                        // ===== ข้อมูลหลอก =====
-                        let stalls = [
-                            { stall_id: 1, stall_code: 'A01' },
-                            { stall_id: 2, stall_code: 'A02' },
-                            { stall_id: 4, stall_code: 'A03' }
-                        ];
-                        let merchants = [
-                            { merchant_id: 1, merchant_name: 'พี่โด้' },
-                            { merchant_id: 2, merchant_name: 'พี่ซี่' },
-                            { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด' }
-                        ];
-                        let staff = [
-                            { staff_id: 1, staff_name: 'โบอิ้ง' },
-                            { staff_id: 2, staff_name: 'โบอิ้ง(ยิ้ม)' }
-                        ];
-                        let leases = [
-                            { lease_id: 1, stall_id: 1, merchant_id: 1, status: 'rented' },
-                            { lease_id: 2, stall_id: 2, merchant_id: 2, status: 'rented' },
-                            { lease_id: 3, stall_id: 4, merchant_id: 3, status: 'cancelled' }
-                        ];
-                        let fines = [
-                            { fine_id: 1, lease_id: 1, staff_id: 1, reason: 'ตั้งแผงล้ำเขต', amount: 100, fined_at: '2026-10-10T09:30:00' },
-                            { fine_id: 2, lease_id: 2, staff_id: 2, reason: 'ไม่ทำความสะอาดแผง', amount: 50, fined_at: '2026-10-10T17:00:00' }
-                        ];
+                                function esc(s) {
+                                return String(s ?? '').replace(/[&<>"']/g,
+                                c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                                }
 
-                        // ===== อ้างอิง element =====
-                        let ftbody = document.getElementById('tbody');
-                        let fine_modal = new bootstrap.Modal(document.getElementById('fine_modal'));
-                        let lease_sel = document.getElementById('lease_sel');
-                        let reason_input = document.getElementById('reason_input');
-                        let amount_input = document.getElementById('amount_input');
-                        let fine_staff_sel = document.getElementById('fine_staff_sel');
+                                // ===== ข้อมูล: เริ่มเป็นอาร์เรย์ว่าง แล้วโหลดจากฐานข้อมูลผ่าน Fines.ashx =====
+                                let fines = [];    // fine_id, lease_id, stall_code, merchant_name, reason, amount, staff_name, fined_at
+                                let leases = [];   // lease_id, stall_code, merchant_name, market_date (เฉพาะสัญญาที่ยังใช้งาน)
+                                let staff = [];    // staff_id, staff_name
 
-                        // ===== ฟังก์ชันตัวช่วย (เหมือน JOIN ตามรหัส) =====
-                        function get_lease(fine) { return leases.find(l => l.lease_id === fine.lease_id); }
-                        function get_stall(lease) { return stalls.find(s => s.stall_id === lease.stall_id); }
-                        function get_merchant(lease) { return merchants.find(m => m.merchant_id === lease.merchant_id); }
-                        function get_staff(fine) { return staff.find(s => s.staff_id === fine.staff_id); }
+                                // ===== อ้างอิง element =====
+                                let ftbody = document.getElementById('tbody');
+                                let load_error = document.getElementById('load_error');
+                                let fine_modal = new bootstrap.Modal(document.getElementById('fine_modal'));
+                                let lease_filter = document.getElementById('lease_filter');
+                                let lease_sel = document.getElementById('lease_sel');
+                                let reason_input = document.getElementById('reason_input');
+                                let amount_input = document.getElementById('amount_input');
+                                let fine_staff_sel = document.getElementById('fine_staff_sel');
 
-                        // ข้อความสัญญา เช่น "1 – A01 – พี่โด้"
-                        function lease_text(lease) {
-                            return `${lease.lease_id} – ${get_stall(lease).stall_code} – ${get_merchant(lease).merchant_name}`;
-                        }
+                                // ===== โหลดข้อมูลจากฐานข้อมูล =====
+                                function load_data() {
+                                    fetch('Fines.ashx')
+                                        .then(r => {
+                                            if (!r.ok) throw new Error('โหลดไม่สำเร็จ');
+                                            return r.json();
+                                        })
+                                        .then(d => {
+                                            fines = d.fines;
+                                            leases = d.leases;
+                                            staff = d.staff;
+                                            load_error.classList.add('d-none');
+                                            frender();
+                                        })
+                                        .catch(() => load_error.classList.remove('d-none'));
+                                }
 
-                        function ffill_select(sel, items, value_of, text_of) {
-                            sel.innerHTML = '<option value="">-- เลือก --</option>';
-                            items.forEach(i => {
-                                let opt = document.createElement('option');
-                                opt.value = value_of(i);
-                                opt.textContent = text_of(i);
-                                sel.appendChild(opt);
-                            });
-                            sel.classList.remove('is-invalid');
-                        }
+                                // ===== ฟังก์ชันตัวช่วย =====
+                                // ข้อความสัญญาในตาราง เช่น "1 – F01 – สมชาย"
+                                function fine_lease_text(f) {
+                                    return `${f.lease_id} – ${f.stall_code} – ${f.merchant_name}`;
+                                }
 
-                        // ===== วาดตาราง =====
-                        function frender() {
-                            ftbody.innerHTML = '';
-                            fines.forEach(f => {
-                                let tr = document.createElement('tr');
-                                tr.innerHTML = `<td>${f.fine_id}</td><td>${lease_text(get_lease(f))}</td><td>${f.reason}</td><td>${f.amount}</td><td>${get_staff(f).staff_name}</td><td>${f.fined_at.slice(0, 10)}</td>`;
-                                ftbody.appendChild(tr);
-                            });
-                        }
+                                // ข้อความสัญญาในช่องเลือก เพิ่มวันตลาดให้แยกสัญญาออกง่ายขึ้น
+                                function lease_option_text(l) {
+                                    return `${l.lease_id} – ${l.stall_code} – ${l.merchant_name} – ${l.market_date}`;
+                                }
 
-                        // ===== ปุ่มเปิดฟอร์ม =====
-                        document.getElementById('add_fine_btn').onclick = function () {
-                            ffill_select(lease_sel, leases, l => l.lease_id, l => lease_text(l));   // ถ้าจะให้เลือกเฉพาะสัญญาที่ยังใช้งาน ใช้ leases.filter(l => l.status === 'rented') แทน leases
-                            ffill_select(fine_staff_sel, staff, p => p.staff_id, p => p.staff_name);
-                            reason_input.value = '';
-                            amount_input.value = '';
-                            reason_input.classList.remove('is-invalid');
-                            amount_input.classList.remove('is-invalid');
-                            fine_modal.show();
-                        };
+                                function ffill_select(sel, items, value_of, text_of) {
+                                    sel.innerHTML = '<option value="">-- เลือก --</option>';
+                                    items.forEach(i => {
+                                        let opt = document.createElement('option');
+                                        opt.value = value_of(i);
+                                        opt.textContent = text_of(i);
+                                        sel.appendChild(opt);
+                                    });
+                                    sel.classList.remove('is-invalid');
+                                }
 
-                        // ===== ปุ่มบันทึก =====
-                        document.getElementById('fine_confirm_btn').onclick = function () {
-                            let ok = true;
+                                // เติมช่องเลือกสัญญา โดยกรองตามข้อความที่พิมพ์ (สัญญามีหลายร้อยรายการ)
+                                function fill_lease_options() {
+                                    let keyword = lease_filter.value.trim().toLowerCase();
+                                    let items = leases.filter(l => lease_option_text(l).toLowerCase().includes(keyword));
+                                    ffill_select(lease_sel, items, l => l.lease_id, l => lease_option_text(l));
+                                }
 
-                            [lease_sel, fine_staff_sel].forEach(el => {
-                                if (el.value === '') { el.classList.add('is-invalid'); ok = false; }
-                                else el.classList.remove('is-invalid');
-                            });
+                                // ===== วาดตาราง =====
+                                function frender() {
+                                    ftbody.innerHTML = '';
+                                    fines.forEach(f => {
+                                        let tr = document.createElement('tr');
+                                        tr.innerHTML = `<td>${f.fine_id}</td><td>${esc(fine_lease_text(f))}</td><td>${esc(f.reason)}</td><td>${Number(f.amount).toLocaleString()}</td><td>${esc(f.staff_name)}</td><td>${esc(f.fined_at)}</td>`;
+                                        ftbody.appendChild(tr);
+                                    });
+                                }
 
-                            if (reason_input.value.trim() === '') { reason_input.classList.add('is-invalid'); ok = false; }
-                            else reason_input.classList.remove('is-invalid');
+                                // ===== ปุ่มเปิดฟอร์ม =====
+                                document.getElementById('add_fine_btn').onclick = function () {
+                                    lease_filter.value = '';
+                                    fill_lease_options();
+                                    ffill_select(fine_staff_sel, staff, p => p.staff_id, p => p.staff_name);
+                                    reason_input.value = '';
+                                    amount_input.value = '';
+                                    reason_input.classList.remove('is-invalid');
+                                    amount_input.classList.remove('is-invalid');
+                                    fine_modal.show();
+                                };
 
-                            if (Number(amount_input.value) <= 0) { amount_input.classList.add('is-invalid'); ok = false; }
-                            else amount_input.classList.remove('is-invalid');
+                                lease_filter.addEventListener('input', fill_lease_options);
 
-                            if (!ok) return;
+                                // ===== ปุ่มบันทึก =====
+                                document.getElementById('fine_confirm_btn').onclick = function () {
+                                    let ok = true;
 
-                            console.log({
-                                lease_id: lease_sel.value,
-                                reason: reason_input.value.trim(),
-                                amount: Number(amount_input.value),
-                                staff_id: fine_staff_sel.value
-                            });
+                                    [lease_sel, fine_staff_sel].forEach(el => {
+                                        if (el.value === '') { el.classList.add('is-invalid'); ok = false; }
+                                        else el.classList.remove('is-invalid');
+                                    });
 
-                            // จำลองการบันทึก (ของจริงฐานข้อมูลเป็นคนสร้างแถวและใส่ fined_at เอง)
-                            fines.push({
-                                fine_id: fines.length + 1,
-                                lease_id: Number(lease_sel.value),
-                                staff_id: Number(fine_staff_sel.value),
-                                reason: reason_input.value.trim(),
-                                amount: Number(amount_input.value),
-                                fined_at: new Date().toISOString()
-                            });
-                            frender();
-                            fine_modal.hide();
-                        };
+                                    if (reason_input.value.trim() === '') { reason_input.classList.add('is-invalid'); ok = false; }
+                                    else reason_input.classList.remove('is-invalid');
 
-                        frender();
+                                    if (Number(amount_input.value) <= 0) { amount_input.classList.add('is-invalid'); ok = false; }
+                                    else amount_input.classList.remove('is-invalid');
+
+                                    if (!ok) return;
+
+                                    // ส่งไปให้ handler เขียนลงฐานข้อมูลจริง (fined_at ฐานข้อมูลใส่เวลาให้เอง)
+                                    fetch('Fines.ashx', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            lease_id: Number(lease_sel.value),
+                                            staff_id: Number(fine_staff_sel.value),
+                                            reason: reason_input.value.trim(),
+                                            amount: Number(amount_input.value)
+                                        })
+                                    })
+                                        .then(r => r.json())
+                                        .catch(() => ({ ok: false, message: 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ' }))
+                                        .then(res => {
+                                            if (!res.ok) {
+                                                alert(res.message);
+                                                return;
+                                            }
+                                            fine_modal.hide();
+                                            load_data();   // โหลดรายการใหม่จากฐานข้อมูล
+                                        });
+                                };
+
+                                load_data();
     </script>
 </body>
 </html>

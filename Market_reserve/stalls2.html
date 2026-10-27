@@ -29,7 +29,10 @@
             <select id="zone_filter" class="form-select w-auto">
                 <option value="">ทุกโซน</option>
             </select>
+            <a href="manage2.html" class="btn btn-outline-secondary ms-auto">จัดการแผงค้า / วันตลาด</a>
         </div>
+        <p id="no_day_msg" class="text-muted d-none">ยังไม่มีวันตลาดที่เปิดรับจอง กดปุ่ม “จัดการแผงค้า / วันตลาด” เพื่อเพิ่มวันตลาดใหม่</p>
+        <p id="load_error" class="text-danger d-none">โหลดข้อมูลแผงค้าไม่สำเร็จ</p>
         <table class="table table-hover ">
             <thead>
                 <tr>
@@ -79,7 +82,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">ยอดชำระ (บาท)</label>
-                        <input id="paid_input" type="number" class="form-control">
+                        <input id="paid_input" type="number" step="0.01" class="form-control">
                         <div class="invalid-feedback">ยอดชำระต้องเท่ากับยอดรวม</div>
                     </div>
                 </div>
@@ -93,182 +96,194 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-                        // ===== ข้อมูลหลอก: ชื่อคอลัมน์ตรงกับ schema จริง =====
-                        let zones = [
-                            { zone_id: 1, zone_name: 'โซนอาหาร', base_rent: 300, deposit_percent: 20 },
-                            { zone_id: 2, zone_name: 'โซนเสื้อผ้า', base_rent: 500, deposit_percent: 15 }
-                        ];
-                        let stalls = [
-                            { stall_id: 1, zone_id: 1, stall_code: 'A01', size_sqm: 12, status: 'available' },
-                            { stall_id: 2, zone_id: 1, stall_code: 'A02', size_sqm: 6, status: 'available' },
-                            { stall_id: 3, zone_id: 2, stall_code: 'B01', size_sqm: 9, status: 'maintenance' },
-                            { stall_id: 4, zone_id: 1, stall_code: 'A03', size_sqm: 6, status: 'available' }
-                        ];
-                        let market_days = [
-                            { market_day_id: 1, market_date: '2026-09-26', is_open: true },
-                            { market_day_id: 2, market_date: '2026-10-10', is_open: true },
-                            { market_day_id: 3, market_date: '2026-10-17', is_open: false },
-                            { market_day_id: 4, market_date: '2026-10-24', is_open: true }
-                        ];
-                        let leases = [
-                            { lease_id: 1, stall_id: 1, market_day_id: 2, status: 'rented' },
-                            { lease_id: 2, stall_id: 2, market_day_id: 2, status: 'rented' },
-                            { lease_id: 3, stall_id: 4, market_day_id: 4, status: 'cancelled' }
-                        ];
-                        let merchants = [
-                            { merchant_id: 1, merchant_name: 'พี่โด้' },
-                            { merchant_id: 2, merchant_name: 'พี่ซี่' },
-                            { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด' }
-                        ];
-                        let staff = [
-                            { staff_id: 1, staff_name: 'โบอิ้ง' },
-                            { staff_id: 2, staff_name: 'โบอิ้ง(ยิ้ม)' }
-                        ];
+                                function esc(s) {
+                                return String(s ?? '').replace(/[&<>"']/g,
+                                c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                                }
 
-                        let badge_class = {
-                            'ว่าง': 'bg-success',
-                            'ติดจอง': 'bg-secondary',
-                            'ปิดซ่อม': 'bg-danger',
-                            'เลือกวันตลาด': 'bg-light text-dark border'
-                        };
+                                // ===== ข้อมูล: โหลดจากฐานข้อมูลผ่าน Stalls.ashx =====
+                                let zones = [];        // zone_id, zone_name, base_rent, deposit_percent
+                                let stalls = [];       // stall_id, zone_id, stall_code, size_sqm, status
+                                let market_days = [];  // market_day_id, market_date (เฉพาะวันที่เปิดจองและยังไม่ผ่านมา)
+                                let booked = [];       // stall_id, market_day_id ของแผงที่ถูกจองแล้ว
+                                let merchants = [];
+                                let staff = [];
 
-                        // ===== อ้างอิง element =====
-                        let tbody = document.getElementById('tbody');
-                        let zone_filter = document.getElementById('zone_filter');
-                        let day_filter = document.getElementById('day_filter');
-                        let book_modal = new bootstrap.Modal(document.getElementById('book_modal'));
-                        let merchant_sel = document.getElementById('merchant_sel');
-                        let day_sel = document.getElementById('day_sel');
-                        let staff_sel = document.getElementById('staff_sel');
-                        let paid_input = document.getElementById('paid_input');
-
-                        let current_stall = null;
-                        let current_total = 0;
-
-                        // ===== ฟังก์ชันตัวช่วย =====
-                        function fill_select(sel, items, value_of, text_of) {
-                            sel.innerHTML = '<option value="">-- เลือก --</option>';
-                            items.forEach(i => {
-                                let opt = document.createElement('option');
-                                opt.value = value_of(i);
-                                opt.textContent = text_of(i);
-                                sel.appendChild(opt);
-                            });
-                            sel.classList.remove('is-invalid');
-                        }
-
-                        // หาโซนของแผง (เหมือน JOIN ตาม zone_id)
-                        function get_zone(stall) {
-                            return zones.find(z => z.zone_id === stall.zone_id);
-                        }
-
-                        // สถานะที่แสดง ขึ้นกับวันตลาดที่เลือก
-                        function get_status(stall) {
-                            if (stall.status === 'maintenance') return 'ปิดซ่อม';
-                            if (day_filter.value === '') return 'เลือกวันตลาด';
-                            let booked = leases.some(l =>
-                                l.stall_id === stall.stall_id &&
-                                l.market_day_id === Number(day_filter.value) &&
-                                l.status === 'rented');          // สัญญา cancelled ไม่นับ
-                            return booked ? 'ติดจอง' : 'ว่าง';
-                        }
-
-                        // ===== วาดตาราง =====
-                        function render() {
-                            tbody.innerHTML = '';
-                            let rows = stalls.filter(s => zone_filter.value === '' || s.zone_id === Number(zone_filter.value));
-                            rows.forEach(s => {
-                                let zone = get_zone(s);
-                                let status_text = get_status(s);
-
-                                let tr = document.createElement('tr');
-                                tr.innerHTML = `<td>${s.stall_code}</td><td>${zone.zone_name}</td><td>${s.size_sqm} ตร.ม.</td><td>${zone.base_rent}</td>
-                                  <td><span class="badge ${badge_class[status_text]}">${status_text}</span></td>`;
-
-                                let td = document.createElement('td');
-                                let btn = document.createElement('a');
-                                btn.className = 'btn btn-sm btn-warning';
-                                btn.textContent = 'จอง';
-                                if (status_text !== 'ว่าง') btn.classList.add('disabled');
-
-                                btn.onclick = function () {
-                                    current_stall = s;
-                                    let deposit = Math.round(zone.base_rent * zone.deposit_percent) / 100;
-                                    current_total = zone.base_rent + deposit;
-
-                                    document.getElementById('modal_code').textContent = s.stall_code;
-                                    document.getElementById('modal_zone').textContent = zone.zone_name;
-                                    document.getElementById('modal_rent').textContent = zone.base_rent;
-                                    document.getElementById('modal_deposit').textContent = deposit;
-                                    document.getElementById('modal_total').textContent = current_total;
-
-                                    fill_select(merchant_sel, merchants, m => m.merchant_id, m => m.merchant_name);
-                                    fill_select(day_sel, open_days(), d => d.market_day_id, d => d.market_date);
-                                    day_sel.value = day_filter.value;   // ใช้วันที่เลือกไว้ที่หน้าแผง
-                                    day_sel.disabled = true;            // ล็อกไว้ ให้ตรงกับสถานะที่เห็น
-                                    fill_select(staff_sel, staff, p => p.staff_id, p => p.staff_name);
-                                    paid_input.value = '';
-                                    paid_input.classList.remove('is-invalid');
-
-                                    book_modal.show();
+                                let badge_class = {
+                                    'ว่าง': 'bg-success',
+                                    'ติดจอง': 'bg-secondary',
+                                    'ปิดซ่อม': 'bg-danger',
+                                    'เลือกวันตลาด': 'bg-light text-dark border'
                                 };
 
-                                td.appendChild(btn);
-                                tr.appendChild(td);
-                                tbody.appendChild(tr);
-                            });
-                        }
+                                // ===== ประกาศตัวแปร =====
+                                let tbody = document.getElementById('tbody');
+                                let zone_filter = document.getElementById('zone_filter');
+                                let day_filter = document.getElementById('day_filter');
+                                let no_day_msg = document.getElementById('no_day_msg');
+                                let load_error = document.getElementById('load_error');
+                                let book_modal = new bootstrap.Modal(document.getElementById('book_modal'));
+                                let merchant_sel = document.getElementById('merchant_sel');
+                                let day_sel = document.getElementById('day_sel');
+                                let staff_sel = document.getElementById('staff_sel');
+                                let paid_input = document.getElementById('paid_input');
 
-                        // วันตลาดที่เปิดรับจองและยังไม่ผ่านมา
-                        function open_days() {
-                            let today = new Date().toLocaleDateString('sv-SE');   // ปี-เดือน-วัน
-                            return market_days.filter(d => d.is_open && d.market_date >= today);
-                        }
+                                let current_stall = null;
+                                let current_total = 0;
 
-                        // ===== เติมตัวกรอง =====
-                        fill_select(day_filter, open_days(), d => d.market_day_id, d => d.market_date);
-                        zones.forEach(z => {
-                            let opt = document.createElement('option');
-                            opt.value = z.zone_id;
-                            opt.textContent = z.zone_name;
-                            zone_filter.appendChild(opt);
-                        });
-                        zone_filter.addEventListener('change', render);
-                        day_filter.addEventListener('change', render);
+                                // ===== ฟังก์ชันตัวช่วย =====
+                                function fill_select(sel, items, value_of, text_of) {
+                                    sel.innerHTML = '<option value="">-- เลือก --</option>';
+                                    items.forEach(i => {
+                                        let opt = document.createElement('option');
+                                        opt.value = value_of(i);
+                                        opt.textContent = text_of(i);
+                                        sel.appendChild(opt);
+                                    });
+                                    sel.classList.remove('is-invalid');
+                                }
 
-                        // ===== ปุ่มยืนยันการจอง =====
-                        document.getElementById('confirm_btn').onclick = function () {
-                            let ok = true;
-                            [merchant_sel, day_sel, staff_sel].forEach(el => {
-                                if (el.value === '') { el.classList.add('is-invalid'); ok = false; }
-                                else el.classList.remove('is-invalid');
-                            });
-                            if (Math.round(Number(paid_input.value) * 100) !== Math.round(current_total * 100)) {
-                                paid_input.classList.add('is-invalid'); ok = false;
-                            } else paid_input.classList.remove('is-invalid');
+                                // หาโซนของแผง (เหมือน JOIN ตาม zone_id)
+                                function get_zone(stall) {
+                                    return zones.find(z => z.zone_id === stall.zone_id);
+                                }
 
-                            if (!ok) return;
+                                // สถานะที่แสดง ขึ้นกับวันตลาดที่เลือก
+                                function get_status(stall) {
+                                    if (stall.status === 'maintenance') return 'ปิดซ่อม';
+                                    if (day_filter.value === '') return 'เลือกวันตลาด';
+                                    let is_booked = booked.some(b =>
+                                        b.stall_id === stall.stall_id &&
+                                        b.market_day_id === Number(day_filter.value));
+                                    return is_booked ? 'ติดจอง' : 'ว่าง';
+                                }
 
-                            console.log({
-                                stall_id: current_stall.stall_id,
-                                merchant_id: merchant_sel.value,
-                                market_day_id: day_sel.value,
-                                staff_id: staff_sel.value,
-                                paid_amount: Number(paid_input.value)
-                            });
+                                // ===== โหลดข้อมูลจากฐานข้อมูล =====
+                                function load_data() {
+                                    let keep_day = day_filter.value;     // จำตัวกรองเดิมไว้ ไม่ให้เด้งกลับหลังโหลดใหม่
+                                    let keep_zone = zone_filter.value;
 
-                            // จำลองการจอง: เพิ่มสัญญาใหม่ แล้ววาดตารางใหม่ (ของจริงฐานข้อมูลเป็นคนสร้าง)
-                            leases.push({
-                                lease_id: leases.length + 1,
-                                stall_id: current_stall.stall_id,
-                                market_day_id: Number(day_sel.value),
-                                status: 'rented'
-                            });
-                            render();
-                            book_modal.hide();
-                        };
+                                    fetch('Stalls.ashx')
+                                        .then(r => {
+                                            if (!r.ok) throw new Error('โหลดไม่สำเร็จ');
+                                            return r.json();
+                                        })
+                                        .then(d => {
+                                            zones = d.zones;
+                                            stalls = d.stalls;
+                                            market_days = d.days;
+                                            booked = d.booked;
+                                            merchants = d.merchants;
+                                            staff = d.staff;
+                                            load_error.classList.add('d-none');
 
-                        render();
+                                            fill_select(day_filter, market_days, x => x.market_day_id, x => x.market_date);
+                                            if (market_days.some(x => String(x.market_day_id) === keep_day)) day_filter.value = keep_day;
+                                            no_day_msg.classList.toggle('d-none', market_days.length > 0);
+
+                                            zone_filter.innerHTML = '<option value="">ทุกโซน</option>';
+                                            zones.forEach(z => {
+                                                let opt = document.createElement('option');
+                                                opt.value = z.zone_id;
+                                                opt.textContent = z.zone_name;
+                                                zone_filter.appendChild(opt);
+                                            });
+                                            if (zones.some(z => String(z.zone_id) === keep_zone)) zone_filter.value = keep_zone;
+
+                                            render();
+                                        })
+                                        .catch(() => load_error.classList.remove('d-none'));
+                                }
+
+                                // ===== วาดตาราง =====
+                                function render() {
+                                    tbody.innerHTML = '';
+                                    let rows = stalls.filter(s => zone_filter.value === '' || s.zone_id === Number(zone_filter.value));
+                                    rows.forEach(s => {
+                                        let zone = get_zone(s);
+                                        let status_text = get_status(s);
+
+                                        let tr = document.createElement('tr');
+                                        tr.innerHTML = `<td>${esc(s.stall_code)}</td><td>${esc(zone.zone_name)}</td><td>${s.size_sqm ?? '-'} ตร.ม.</td><td>${zone.base_rent}</td>
+                                          <td><span class="badge ${badge_class[status_text]}">${status_text}</span></td>`;
+
+                                        let td = document.createElement('td');
+                                        let btn = document.createElement('a');
+                                        btn.className = 'btn btn-sm btn-warning';
+                                        btn.textContent = 'จอง';
+                                        if (status_text !== 'ว่าง') btn.classList.add('disabled');
+
+                                        btn.onclick = function () {
+                                            current_stall = s;
+                                            // สูตรเดียวกับ sp_reserve_stall: ROUND(ค่าเช่า × % ÷ 100, 2) (ปัดเป็น 2 ตำแหน่ง กันเศษทศนิยมเพี้ยน)
+                                            let deposit = Math.round(zone.base_rent * zone.deposit_percent) / 100;
+                                            current_total = Math.round((zone.base_rent + deposit) * 100) / 100;
+
+                                            document.getElementById('modal_code').textContent = s.stall_code;
+                                            document.getElementById('modal_zone').textContent = zone.zone_name;
+                                            document.getElementById('modal_rent').textContent = zone.base_rent;
+                                            document.getElementById('modal_deposit').textContent = deposit;
+                                            document.getElementById('modal_total').textContent = current_total;
+
+                                            fill_select(merchant_sel, merchants, m => m.merchant_id, m => m.merchant_name);
+                                            fill_select(day_sel, market_days, d => d.market_day_id, d => d.market_date);
+                                            day_sel.value = day_filter.value;   // ใช้วันที่เลือกไว้ที่หน้าแผง
+                                            day_sel.disabled = true;            // ล็อกไว้ ให้ตรงกับสถานะที่เห็น
+                                            fill_select(staff_sel, staff, p => p.staff_id, p => p.staff_name);
+                                            paid_input.value = '';
+                                            paid_input.classList.remove('is-invalid');
+
+                                            book_modal.show();
+                                        };
+
+                                        td.appendChild(btn);
+                                        tr.appendChild(td);
+                                        tbody.appendChild(tr);
+                                    });
+                                }
+
+                                zone_filter.addEventListener('change', render);
+                                day_filter.addEventListener('change', render);
+
+                                // ===== ปุ่มยืนยันการจอง =====
+                                document.getElementById('confirm_btn').onclick = function () {
+                                    let ok = true;
+                                    [merchant_sel, day_sel, staff_sel].forEach(el => {
+                                        if (el.value === '') { el.classList.add('is-invalid'); ok = false; }
+                                        else el.classList.remove('is-invalid');
+                                    });
+                                    if (Math.round(Number(paid_input.value) * 100) !== Math.round(current_total * 100)) {
+                                        paid_input.classList.add('is-invalid'); ok = false;
+                                    } else paid_input.classList.remove('is-invalid');
+
+                                    if (!ok) return;
+
+                                    // เรียก Reserve.ashx -> sp_reserve_stall (Transaction ACID อยู่ในฐานข้อมูล)
+                                    fetch('Reserve.ashx', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            stall_id: current_stall.stall_id,
+                                            merchant_id: Number(merchant_sel.value),
+                                            market_day_id: Number(day_sel.value),
+                                            staff_id: Number(staff_sel.value),
+                                            paid_amount: Number(paid_input.value)
+                                        })
+                                    })
+                                        .then(r => r.json())
+                                        .catch(() => ({ ok: false, message: 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ' }))
+                                        .then(res => {
+                                            if (res.ok) {
+                                                alert('จองสำเร็จ รหัสสัญญา ' + res.lease_id);
+                                            } else {
+                                                alert(res.message);   // ข้อความไทยจาก procedure/trigger
+                                            }
+                                            book_modal.hide();
+                                            load_data();              // โหลดสถานะแผงใหม่จากฐานข้อมูลเสมอ
+                                        });
+                                };
+
+                                load_data();
     </script>
 
 </body>

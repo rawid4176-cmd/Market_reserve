@@ -21,8 +21,17 @@
     </nav>
 
     <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <p class="mb-0">รายการค่าน้ำไฟ</p>
+        <div id="msg" class="alert d-none" role="alert"></div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+            <div class="d-flex gap-2">
+                <input id="search_input" type="text" class="form-control w-auto" placeholder="ค้นหารหัสสัญญา แผง หรือผู้ค้า">
+                <select id="type_filter" class="form-select w-auto">
+                    <option value="">ทุกประเภท</option>
+                    <option value="water">น้ำ</option>
+                    <option value="electricity">ไฟฟ้า</option>
+                </select>
+            </div>
             <button type="button" class="btn btn-primary" id="add_util_btn">บันทึกค่าน้ำไฟ</button>
         </div>
 
@@ -40,6 +49,8 @@
             </thead>
             <tbody id="tbody"></tbody>
         </table>
+        <p id="count_msg" class="text-muted small"></p>
+        <p id="load_error" class="text-danger d-none">โหลดข้อมูลค่าน้ำไฟไม่สำเร็จ</p>
     </div>
 
     <div class="modal fade" id="util_modal" tabindex="-1">
@@ -50,8 +61,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div id="modal_error" class="alert alert-danger d-none"></div>
                     <div class="mb-3">
                         <label class="form-label">สัญญา</label>
+                        <input id="lease_filter" type="text" class="form-control mb-2" placeholder="พิมพ์ค้นหา เช่น รหัสแผง ชื่อผู้ค้า หรือวันที่">
                         <select id="ulease_sel" class="form-select"></select>
                         <div class="invalid-feedback">กรุณาเลือกสัญญา</div>
                     </div>
@@ -81,46 +94,67 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-                // ===== ข้อมูลหลอก =====
-                let stalls = [
-                    { stall_id: 1, stall_code: 'A01' },
-                    { stall_id: 2, stall_code: 'A02' },
-                    { stall_id: 4, stall_code: 'A03' }
-                ];
-                let merchants = [
-                    { merchant_id: 1, merchant_name: 'พี่โด้' },
-                    { merchant_id: 2, merchant_name: 'พี่ซี่' },
-                    { merchant_id: 3, merchant_name: 'ร้านน้องจู๊ด' }
-                ];
-                let leases = [
-                    { lease_id: 1, stall_id: 1, merchant_id: 1, status: 'rented' },
-                    { lease_id: 2, stall_id: 2, merchant_id: 2, status: 'rented' },
-                    { lease_id: 3, stall_id: 4, merchant_id: 3, status: 'cancelled' }
-                ];
-                let utilities = [
-                    { charge_id: 1, lease_id: 1, utility_type: 'electricity', units_used: 20, unit_rate: 8, recorded_at: '2026-10-10T18:00:00' },
-                    { charge_id: 2, lease_id: 1, utility_type: 'water', units_used: 5, unit_rate: 18, recorded_at: '2026-10-10T18:00:00' }
-                ];
+                function esc(s) {
+                    return String(s ?? '').replace(/[&<>"']/g,
+                        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                }
+
+                const MAX_ROWS = 100;   // รายการมีหลายร้อยแถว แสดงทีละไม่เกิน 100 แถว ใช้ช่องค้นหาช่วยหา
+
+                // ===== ข้อมูล: โหลดจากฐานข้อมูลผ่าน Utilities.ashx =====
+                let utilities = [];   // charge_id, lease_id, stall_code, merchant_name, utility_type, units_used, unit_rate, charge_amount, recorded_at
+                let leases = [];      // lease_id, stall_code, merchant_name, market_date (เฉพาะสัญญาที่ยังใช้งาน)
 
                 let type_th = { water: 'น้ำ', electricity: 'ไฟฟ้า' };
-                // ราคาต่อหน่วยตัวอย่าง ใช้แสดงยอดโดยประมาณเท่านั้น (ของจริงระบบเป็นคนใส่ ไม่ต้องส่งไปจากหน้าเว็บ)
+                // ราคาต่อหน่วยตัวอย่าง ใช้แสดง "ยอดโดยประมาณ" เท่านั้น
+                // ของจริงฐานข้อมูล (sp_record_utility) เป็นคนกำหนดราคาเอง หน้าเว็บส่งแค่สัญญา ประเภท และหน่วยที่ใช้
                 let unit_rates = { water: 18, electricity: 8 };
 
                 // ===== อ้างอิง element =====
                 let tbody = document.getElementById('tbody');
+                let msg = document.getElementById('msg');
+                let count_msg = document.getElementById('count_msg');
+                let load_error = document.getElementById('load_error');
+                let search_input = document.getElementById('search_input');
+                let type_filter = document.getElementById('type_filter');
                 let util_modal = new bootstrap.Modal(document.getElementById('util_modal'));
+                let modal_error = document.getElementById('modal_error');
+                let lease_filter = document.getElementById('lease_filter');
                 let ulease_sel = document.getElementById('ulease_sel');
                 let type_sel = document.getElementById('type_sel');
                 let units_input = document.getElementById('units_input');
                 let preview = document.getElementById('preview');
                 let type_feedback = document.getElementById('type_feedback');
+                let confirm_btn = document.getElementById('util_confirm_btn');
+
+                function show_msg(type, text) {
+                    msg.className = 'alert alert-' + type;
+                    msg.textContent = text;
+                }
+
+                // ===== โหลดข้อมูลจากฐานข้อมูล =====
+                function load_data() {
+                    fetch('Utilities.ashx')
+                        .then(r => {
+                            if (!r.ok) throw new Error('โหลดไม่สำเร็จ');
+                            return r.json();
+                        })
+                        .then(d => {
+                            utilities = d.utilities;
+                            leases = d.leases;
+                            load_error.classList.add('d-none');
+                            urender();
+                        })
+                        .catch(() => load_error.classList.remove('d-none'));
+                }
 
                 // ===== ฟังก์ชันตัวช่วย =====
-                function get_lease(util) { return leases.find(l => l.lease_id === util.lease_id); }
-                function get_stall(lease) { return stalls.find(s => s.stall_id === lease.stall_id); }
-                function get_merchant(lease) { return merchants.find(m => m.merchant_id === lease.merchant_id); }
-                function lease_text(lease) {
-                    return `${lease.lease_id} – ${get_stall(lease).stall_code} – ${get_merchant(lease).merchant_name}`;
+                function lease_text(u) {
+                    return `${u.lease_id} – ${u.stall_code} – ${u.merchant_name}`;
+                }
+
+                function lease_option_text(l) {
+                    return `${l.lease_id} – ${l.stall_code} – ${l.merchant_name} – ${l.market_date}`;
                 }
 
                 function ufill_select(sel, items, value_of, text_of) {
@@ -134,6 +168,13 @@
                     sel.classList.remove('is-invalid');
                 }
 
+                // เติมช่องเลือกสัญญา โดยกรองตามข้อความที่พิมพ์ (สัญญามีหลายร้อยรายการ)
+                function fill_lease_options() {
+                    let keyword = lease_filter.value.trim().toLowerCase();
+                    let items = leases.filter(l => lease_option_text(l).toLowerCase().includes(keyword));
+                    ufill_select(ulease_sel, items, l => l.lease_id, l => lease_option_text(l));
+                }
+
                 // ยอดโดยประมาณ = หน่วย × ราคาของประเภทที่เลือก
                 function update_preview() {
                     if (type_sel.value === '' || units_input.value === '') {
@@ -145,34 +186,51 @@
 
                 // ===== วาดตาราง =====
                 function urender() {
+                    let keyword = search_input.value.trim().toLowerCase();
+                    let type = type_filter.value;
+
+                    let rows = utilities.filter(u =>
+                        (type === '' || u.utility_type === type) &&
+                        (lease_text(u).toLowerCase().includes(keyword)));
+
+                    let shown = rows.slice(0, MAX_ROWS);
+                    count_msg.textContent = rows.length > MAX_ROWS
+                        ? `แสดง ${MAX_ROWS} จาก ${rows.length} รายการ (ใช้ช่องค้นหาเพื่อกรอง)`
+                        : `ทั้งหมด ${rows.length} รายการ`;
+
                     tbody.innerHTML = '';
-                    utilities.forEach(u => {
-                        let amount = u.units_used * u.unit_rate;
+                    shown.forEach(u => {
                         let tr = document.createElement('tr');
-                        tr.innerHTML = `<td>${u.charge_id}</td><td>${lease_text(get_lease(u))}</td><td>${type_th[u.utility_type]}</td><td>${u.units_used}</td><td>${u.unit_rate}</td><td>${amount.toLocaleString()}</td><td>${u.recorded_at.slice(0, 10)}</td>`;
+                        tr.innerHTML = `<td>${u.charge_id}</td><td>${esc(lease_text(u))}</td><td>${type_th[u.utility_type]}</td><td>${u.units_used}</td><td>${u.unit_rate}</td><td>${Number(u.charge_amount).toLocaleString()}</td><td>${esc(u.recorded_at)}</td>`;
                         tbody.appendChild(tr);
                     });
                 }
 
+                search_input.addEventListener('input', urender);
+                type_filter.addEventListener('change', urender);
+
                 // ===== ปุ่มเปิดฟอร์ม =====
                 document.getElementById('add_util_btn').onclick = function () {
-                    let active = leases.filter(l => l.status === 'rented');   // เฉพาะสัญญาที่ยังใช้งาน
-                    ufill_select(ulease_sel, active, l => l.lease_id, l => lease_text(l));
+                    lease_filter.value = '';
+                    fill_lease_options();   // leases มาจากฐานข้อมูลเฉพาะสัญญาที่ยังใช้งานอยู่แล้ว
                     type_sel.value = '';
                     units_input.value = '';
                     type_sel.classList.remove('is-invalid');
                     units_input.classList.remove('is-invalid');
                     type_feedback.textContent = 'กรุณาเลือกประเภท';
+                    modal_error.classList.add('d-none');
                     preview.textContent = '-';
                     util_modal.show();
                 };
 
+                lease_filter.addEventListener('input', fill_lease_options);
                 units_input.addEventListener('input', update_preview);
                 type_sel.addEventListener('change', update_preview);
 
                 // ===== ปุ่มบันทึก =====
-                document.getElementById('util_confirm_btn').onclick = function () {
+                confirm_btn.onclick = function () {
                     let ok = true;
+                    modal_error.classList.add('d-none');
 
                     // 1) สัญญา
                     if (ulease_sel.value === '') { ulease_sel.classList.add('is-invalid'); ok = false; }
@@ -197,27 +255,34 @@
 
                     if (!ok) return;
 
-                    console.log({
-                        lease_id: ulease_sel.value,
-                        utility_type: type_sel.value,
-                        units_used: Number(units_input.value)
-                    });
+                    confirm_btn.disabled = true;
 
-                    // จำลองการบันทึก (ของจริงฐานข้อมูลเป็นคนใส่ราคาต่อหน่วยและเวลา)
-                    utilities.push({
-                        charge_id: utilities.length + 1,
-                        lease_id: Number(ulease_sel.value),
-                        utility_type: type_sel.value,
-                        units_used: Number(units_input.value),
-                        unit_rate: unit_rates[type_sel.value],
-                        recorded_at: new Date().toISOString()
-                    });
-                    urender();
-                    util_modal.hide();
+                    // ส่งให้ handler เรียก sp_record_utility (ฐานข้อมูลใส่ราคาต่อหน่วยและเวลาเอง)
+                    fetch('Utilities.ashx', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            lease_id: Number(ulease_sel.value),
+                            utility_type: type_sel.value,
+                            units_used: Number(units_input.value)
+                        })
+                    })
+                        .then(r => r.json())
+                        .catch(() => ({ ok: false, message: 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ' }))
+                        .then(res => {
+                            confirm_btn.disabled = false;
+                            if (res.ok) {
+                                util_modal.hide();
+                                show_msg('success', `บันทึกค่า${type_th[type_sel.value]}เรียบร้อย (รหัส ${res.charge_id})`);
+                                load_data();
+                                return;
+                            }
+                            modal_error.textContent = res.message;
+                            modal_error.classList.remove('d-none');
+                        });
                 };
 
-                urender();
+                load_data();
     </script>
-   
 </body>
 </html>

@@ -70,6 +70,7 @@
     <Content Include="fines2.html" />
     <Content Include="leases2.html" />
     <Content Include="main_menu.html" />
+    <Content Include="manage2.html" />
     <Content Include="merchants2.html" />
     <Content Include="stalls2.html" />
     <Content Include="utilities2.html" />
@@ -79,7 +80,15 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="merchants.ashx" />
+    <Content Include="fines.ashx" />
+    <Content Include="leases.ashx" />
     <None Include="packages.config" />
+    <Content Include="reserve.ashx" />
+    <Content Include="Stalls.ashx" />
+    <Content Include="revenue.ashx" />
+    <Content Include="utilities.ashx" />
+    <Content Include="stallAdmin.ashx" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
