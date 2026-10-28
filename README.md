@@ -63,8 +63,7 @@
 ## ขั้นที่ 2: รันเว็บ
 
 1. เปิดไฟล์ `Market_reserve.slnx` ด้วย Visual Studio
-2. 
-ตั้งไว้แล้วใน `Market_reserve/Web.config` (ชื่อ `market_db`)
+2. ตั้งไว้แล้วใน `Market_reserve/Web.config` (ชื่อ `market_db`)
 ```
 Data Source=.\SQLEXPRESS;Initial Catalog=market_db;Integrated Security=SSPI;
 ```
