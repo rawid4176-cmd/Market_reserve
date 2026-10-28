@@ -9,7 +9,7 @@
 |---|---|---|
 | 67366925 | นายอัษณัช แก้วเผือก | Data Architect & DBA |
 | 67366062 | นายสิทธิพล แซ่ว้า  | Backend & DB Logic Engineer |
-| 67365010 | รวิดนัย ด้วงโสน | Full-stack & Frontend Developer |
+| 67365010 | นายรวิดนัย ด้วงโสน | Full-stack & Frontend Developer |
 
 ## เทคโนโลยี
 
