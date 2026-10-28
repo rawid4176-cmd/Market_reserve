@@ -41,15 +41,13 @@
 ```
 
 ## ขั้นที่ 1: สร้างฐานข้อมูล
-
-1)เปิดโปรแกรม SQL Sever Management Studio ขึ้นมาและทำการนำชื่อ user name มาใส่ในช่อง Sever name และเติม \SQLEXPRESS
+1. เปิดโปรแกรม SQL Sever Management Studio ขึ้นมาและทำการนำชื่อ user name มาใส่ในช่อง Sever name และเติม \SQLEXPRESS
 เช่นชื่อ user ชื่อ LAPTOP-12345QS8E ก็เป็น LAPTOP-12345QS8E\SQLEXPRESS จากนั้นกด Connect
-2)จากนั้นทำการกดที่ File ซ้ายบนและเลือก Open และไปที่ File... จากนั้นเปิดFolder DATABASE 
+2. จากนั้นทำการกดที่ File ซ้ายบนและเลือก Open และไปที่ File... จากนั้นเปิดFolder DATABASE 
 และเลือกไฟล์ได้แก่ schema.sql,data.sql, logic.sql,  queries.sql, 
-3)หลังจากเปิดไฟล์แล้วให้ทำการ Execute ไฟล์ ตามลำดับ  schema.sql, data.sql, logic.sql,  queries.sql,
+3. หลังจากเปิดไฟล์แล้วให้ทำการ Execute ไฟล์ ตามลำดับ  schema.sql, data.sql, logic.sql,  queries.sql,
 
 ## ขั้นที่ 2: รันเว็บ
-
 1. เปิดไฟล์ `Market_reserve.slnx` ด้วย Visual Studio
 2. ตั้งไว้แล้วใน `Market_reserve/Web.config` (ชื่อ `market_db`)
 ```
