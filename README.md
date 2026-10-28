@@ -49,17 +49,6 @@
 และเลือกไฟล์ได้แก่ schema.sql,data.sql, logic.sql,  queries.sql, 
 3)หลังจากเปิดไฟล์แล้วให้ทำการ Execute ไฟล์ ตามลำดับ  schema.sql, data.sql, logic.sql,  queries.sql,
 
-### ออบเจ็กต์ใน `logic.sql`
-
-| ประเภท | ชื่อ | หน้าที่ |
-|---|---|---|
-| Trigger | `trg_prevent_double_stall_booking` | กันจองแผงเดียวกันซ้ำในวันตลาดเดียวกัน |
-| Stored Procedure | `sp_reserve_stall` | จองแผง บันทึกสัญญาและรับชำระค่าเช่า+เงินมัดจำใน Transaction เดียว (ACID) |
-| Stored Procedure | `sp_record_utility` | บันทึกค่าน้ำ/ค่าไฟ โดยระบบกำหนดราคาต่อหน่วยให้เอง (น้ำ 18, ไฟฟ้า 8 บาท) |
-| Stored Procedure | `sp_cancel_lease` | ยกเลิกสัญญาและบันทึกคืนเงินมัดจำใน Transaction เดียว |
-| View | `vw_market_zone_revenue` | สรุปอัตราการเช่าและรายได้ค่าเช่า/ค่าน้ำไฟแยกตามโซน |
-
-
 ## ขั้นที่ 2: รันเว็บ
 
 1. เปิดไฟล์ `Market_reserve.slnx` ด้วย Visual Studio
