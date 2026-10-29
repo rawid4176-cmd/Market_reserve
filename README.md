@@ -5,11 +5,12 @@
 ระบบสำหรับเจ้าหน้าที่ตลาดใช้จัดการแผงค้า จองแผงตามรอบวันตลาด บันทึกการรับชำระค่าเช่าและเงินมัดจำ ยกเลิกสัญญาพร้อมคืนมัดจำ บันทึกค่าน้ำไฟและค่าปรับ และดูรายงานรายได้กับอัตราการเช่าแยกตามโซน
 
 ## สมาชิก
-|รหัสนิสิต | ชื่อ | บทบาท |
+
+| ชื่อ | รหัสนิสิต | บทบาท |
 |---|---|---|
-| 67366925 | นายอัษณัช แก้วเผือก | Data Architect & DBA |
-| 67366062 | นายสิทธิพล แซ่ว้า  | Backend & DB Logic Engineer |
-| 67365010 | นายรวิดนัย ด้วงโสน | Full-stack & Frontend Developer |
+| [ชื่อ] | [รหัส] | Data Architect & DBA |
+| [ชื่อ] | [รหัส] | Backend & DB Logic Engineer |
+| [ชื่อ] | [รหัส] | Full-stack & Frontend Developer |
 
 ## เทคโนโลยี
 
@@ -41,21 +42,47 @@
 ```
 
 ## ขั้นที่ 1: สร้างฐานข้อมูล
-1. เปิดโปรแกรม SQL Sever Management Studio ขึ้นมาและทำการนำชื่อ user name มาใส่ในช่อง Sever name และเติม \SQLEXPRESS
-เช่นชื่อ user ชื่อ LAPTOP-12345QS8E ก็เป็น LAPTOP-12345QS8E\SQLEXPRESS จากนั้นกด Connect
-2. จากนั้นทำการกดที่ File ซ้ายบนและเลือก Open และไปที่ File... จากนั้นเปิดFolder DATABASE 
-และเลือกไฟล์ได้แก่ schema.sql,data.sql, logic.sql,  queries.sql, 
-3. หลังจากเปิดไฟล์แล้วให้ทำการ Execute ไฟล์ ตามลำดับ  schema.sql, data.sql, logic.sql,  queries.sql,
 
-## ขั้นที่ 2: รันเว็บ
-1. เปิดไฟล์ `Market_reserve.slnx` ด้วย Visual Studio
-2. ตั้งไว้แล้วใน `Market_reserve/Web.config` (ชื่อ `market_db`)
+เปิด Command Prompt ในโฟลเดอร์ `database/` แล้วรัน **ตามลำดับนี้ (ห้ามสลับ)**
+
+```
+sqlcmd -S .\SQLEXPRESS -E -f 65001 -i schema.sql
+sqlcmd -S .\SQLEXPRESS -E -f 65001 -i data.sql
+sqlcmd -S .\SQLEXPRESS -E -f 65001 -i logic.sql
+sqlcmd -S .\SQLEXPRESS -E -f 65001 -i queries.sql
+```
+
+- `schema.sql` สร้างฐานข้อมูล `market_db` ให้เอง และ **รันซ้ำได้** (ลบตารางทั้ง 9 แล้วสร้างใหม่ ข้อมูลเดิมจะหาย จึงต้องรัน `data.sql` กับ `logic.sql` ตามหลังทุกครั้ง)
+- `data.sql`, `logic.sql`, `queries.sql` มี `USE market_db;` บนสุดแล้ว ไม่ต้องใส่ `-d market_db`
+- `queries.sql` คือ Query 10 ข้อสำหรับดูรายงาน ไม่จำเป็นต่อการรันเว็บ ถ้าอยากเก็บผลลัพธ์ลงไฟล์ให้เติม `-o queries_output.txt -W`
+- ต้องใส่ `-f 65001` ทุกครั้ง ไม่เช่นนั้นภาษาไทยจะเพี้ยน
+- ข้อมูลตัวอย่าง: 5 โซน, 50 แผง, 40 ผู้ค้า, 20 พนักงาน, 51 วันตลาด, 575 สัญญา
+
+### ออบเจ็กต์ใน `logic.sql`
+
+| ประเภท | ชื่อ | หน้าที่ |
+|---|---|---|
+| Trigger | `trg_prevent_double_stall_booking` | กันจองแผงเดียวกันซ้ำในวันตลาดเดียวกัน |
+| Stored Procedure | `sp_reserve_stall` | จองแผง บันทึกสัญญาและรับชำระค่าเช่า+เงินมัดจำใน Transaction เดียว (ACID) |
+| Stored Procedure | `sp_record_utility` | บันทึกค่าน้ำ/ค่าไฟ โดยระบบกำหนดราคาต่อหน่วยให้เอง (น้ำ 18, ไฟฟ้า 8 บาท) |
+| Stored Procedure | `sp_cancel_lease` | ยกเลิกสัญญาและบันทึกคืนเงินมัดจำใน Transaction เดียว |
+| View | `vw_market_zone_revenue` | สรุปอัตราการเช่าและรายได้ค่าเช่า/ค่าน้ำไฟแยกตามโซน |
+
+## ขั้นที่ 2: ตั้งค่าการเชื่อมต่อ
+
+ตั้งไว้แล้วใน `Market_reserve/Web.config` (ชื่อ `market_db`)
+
 ```
 Data Source=.\SQLEXPRESS;Initial Catalog=market_db;Integrated Security=SSPI;
 ```
+
 ใช้ Windows Authentication จึงไม่มีรหัสผ่านในโค้ด บัญชี Windows ที่เปิด Visual Studio ต้องมีสิทธิ์เข้า SQL Server ถ้า instance ไม่ได้ชื่อ `SQLEXPRESS` ให้แก้ `Data Source` ให้ตรงกับเครื่อง
-3. กด **F5** (รันด้วย IIS Express) ครั้งแรกอาจมีหน้าต่างถามให้เชื่อถือใบรับรอง SSL ของ IIS Express ให้ตอบ **Yes**
-4. เบราว์เซอร์จะเปิดที่ `https://localhost:<พอร์ต>/` (เลขพอร์ตต่างกันได้ในแต่ละเครื่อง) เปิดหน้าแรกที่ `/main_menu.html`
+
+## ขั้นที่ 3: รันเว็บ
+
+1. เปิดไฟล์ `Market_reserve.slnx` ด้วย Visual Studio
+2. กด **F5** (รันด้วย IIS Express) ครั้งแรกอาจมีหน้าต่างถามให้เชื่อถือใบรับรอง SSL ของ IIS Express ให้ตอบ **Yes**
+3. เบราว์เซอร์จะเปิดที่ `https://localhost:<พอร์ต>/` (เลขพอร์ตต่างกันได้ในแต่ละเครื่อง) เปิดหน้าแรกที่ `/main_menu.html`
    - ถ้าเบราว์เซอร์ขึ้นหน้า error หรือรายชื่อไฟล์แทนหน้าแรก ให้พิมพ์ `/main_menu.html` ต่อท้ายที่อยู่ หรือคลิกขวาที่ `main_menu.html` ใน Solution Explorer แล้วเลือก **Set As Start Page** จากนั้นกด F5 ใหม่
 
 ## หน้าเว็บและฟีเจอร์
@@ -108,4 +135,3 @@ Data Source=.\SQLEXPRESS;Initial Catalog=market_db;Integrated Security=SSPI;
 | `sqlcmd` ไม่ถูกรู้จัก | ติดตั้ง SQL Server Command Line Utilities แล้วเปิด Command Prompt ใหม่ |
 | `Msg 208 Invalid object name 'sp_...'` ตอนรัน `logic.sql` | มี procedure ชื่อเดียวกันตกค้างในฐานข้อมูล `master` ตรวจด้วย `SELECT name FROM master.sys.objects WHERE name LIKE 'sp[_]%'` แล้วลบตัวที่ตกค้างด้วย `USE master; GO DROP PROCEDURE dbo.sp_reserve_stall; GO` จากนั้นรัน `logic.sql` ใหม่ |
 | อยากรีเซ็ตข้อมูลเป็นค่าตั้งต้น | รัน `schema.sql` → `data.sql` → `logic.sql` ใหม่ตามลำดับ |
-
