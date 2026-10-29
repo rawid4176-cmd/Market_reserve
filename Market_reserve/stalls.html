@@ -14,11 +14,11 @@
             <a class="navbar-brand" href="main_menu.html">ตลาดนัด</a>
             <div class="navbar-nav">
                 <a class="nav-link " href="main_menu.html">หน้าแรก</a>
-                <a class="nav-link active" href="stalls2.html">แผงค้า</a>
-                <a class="nav-link" href="leases2.html">สัญญา</a>
-                <a class="nav-link" href="fines2.html">ค่าปรับ</a>
-                <a class="nav-link" href="utilities2.html">ค่าน้ำไฟ</a>
-                <a class="nav-link" href="merchants2.html">ผู้ค้า</a>
+                <a class="nav-link active" href="stalls.html">แผงค้า</a>
+                <a class="nav-link" href="leases.html">สัญญา</a>
+                <a class="nav-link" href="fines.html">ค่าปรับ</a>
+                <a class="nav-link" href="utilities.html">ค่าน้ำไฟ</a>
+                <a class="nav-link" href="merchants.html">ผู้ค้า</a>
             </div>
         </div>
     </nav>
@@ -29,7 +29,7 @@
             <select id="zone_filter" class="form-select w-auto">
                 <option value="">ทุกโซน</option>
             </select>
-            <a href="manage2.html" class="btn btn-outline-secondary ms-auto">จัดการแผงค้า / วันตลาด</a>
+            <a href="manage.html" class="btn btn-outline-secondary ms-auto">จัดการแผงค้า / วันตลาด</a>
         </div>
         <p id="no_day_msg" class="text-muted d-none">ยังไม่มีวันตลาดที่เปิดรับจอง กดปุ่ม “จัดการแผงค้า / วันตลาด” เพื่อเพิ่มวันตลาดใหม่</p>
         <p id="load_error" class="text-danger d-none">โหลดข้อมูลแผงค้าไม่สำเร็จ</p>
@@ -163,7 +163,7 @@
                                     let keep_day = day_filter.value;     // จำตัวกรองเดิมไว้ ไม่ให้เด้งกลับหลังโหลดใหม่
                                     let keep_zone = zone_filter.value;
 
-                                    fetch('Stalls.ashx')
+                                    fetch('stalls.ashx')
                                         .then(r => {
                                             if (!r.ok) throw new Error('โหลดไม่สำเร็จ');
                                             return r.json();
@@ -259,7 +259,7 @@
                                     if (!ok) return;
 
                                     // เรียก Reserve.ashx -> sp_reserve_stall (Transaction ACID อยู่ในฐานข้อมูล)
-                                    fetch('Reserve.ashx', {
+                                    fetch('reserve.ashx', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
