@@ -13,11 +13,11 @@
             <a class="navbar-brand" href="main_menu.html">ตลาดนัด</a>
             <div class="navbar-nav">
                 <a class="nav-link active" href="main_menu.html">หน้าแรก</a>
-                <a class="nav-link" href="stalls2.html">แผงค้า</a>
-                <a class="nav-link" href="leases2.html">สัญญา</a>
-                <a class="nav-link" href="fines2.html">ค่าปรับ</a>
-                <a class="nav-link" href="utilities2.html">ค่าน้ำไฟ</a>
-                <a class="nav-link" href="merchants2.html">ผู้ค้า</a>
+                <a class="nav-link" href="stalls.html">แผงค้า</a>
+                <a class="nav-link" href="leases.html">สัญญา</a>
+                <a class="nav-link" href="fines.html">ค่าปรับ</a>
+                <a class="nav-link" href="utilities.html">ค่าน้ำไฟ</a>
+                <a class="nav-link" href="merchants.html">ผู้ค้า</a>
             </div>
         </div>
     </nav>
@@ -123,7 +123,7 @@
 
                         // ===== โหลดข้อมูลจากฐานข้อมูล =====
                         function load_data() {
-                            fetch('Revenue.ashx')
+                            fetch('revenue.ashx')
                                 .then(r => {
                                     if (!r.ok) throw new Error('โหลดไม่สำเร็จ');
                                     return r.json();
