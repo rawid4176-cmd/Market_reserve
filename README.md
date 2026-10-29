@@ -6,11 +6,11 @@
 
 ## สมาชิก
 
-| ชื่อ | รหัสนิสิต | บทบาท |
+| รหัสนิสิต | ชื่อ | บทบาท |
 |---|---|---|
-| [ชื่อ] | [รหัส] | Data Architect & DBA |
-| [ชื่อ] | [รหัส] | Backend & DB Logic Engineer |
-| [ชื่อ] | [รหัส] | Full-stack & Frontend Developer |
+| 67366925 | นายอัษณัช แก้วเผือก | Data Architect & DBA |
+| 67366062 | นายสิทธิพล แซ่ว้า | Backend & DB Logic Engineer |
+| 67365010 | นายรวิดนัย ด้วงโสน | Full-stack & Frontend Developer |
 
 ## เทคโนโลยี
 
@@ -22,9 +22,8 @@
 
 - **Visual Studio 2026** (ทดสอบกับ Community 18.10.3) หรือรุ่นที่เปิดไฟล์ `.slnx` ได้ พร้อม workload "ASP.NET and web development" และ .NET Framework 4.7.2 targeting pack (Visual Studio 2019 เปิดไฟล์ `.slnx` ไม่ได้)
 - **SQL Server 2019 Express** โดยใช้ชื่อ instance `SQLEXPRESS`
-- **sqlcmd** (มากับ SQL Server หรือติดตั้งแยกในชื่อ SQL Server Command Line Utilities)
+- **SQL Server Management Studio (SSMS)** ใช้รันไฟล์ SQL และตรวจข้อมูล (ทดสอบกับรุ่น 22.7.2)
 - **อินเทอร์เน็ตตอนใช้งานเว็บ** เพราะหน้าเว็บโหลด Bootstrap จาก CDN ถ้าไม่มีเน็ต หน้าจะไม่มีสไตล์และหน้าต่างป๊อปอัปจะไม่ทำงาน
-- (ไม่บังคับ) SQL Server Management Studio (SSMS) สำหรับดูข้อมูลด้วยหน้าจอกราฟิก (ทดสอบกับรุ่น 22.7.2)
 
 ## โครงสร้างโฟลเดอร์
 
@@ -41,22 +40,47 @@
     └── generate_mock_data.py  สคริปต์สร้างข้อมูลจำลอง (ไม่จำเป็นต้องรัน)
 ```
 
-## ขั้นที่ 1: สร้างฐานข้อมูล
+## ขั้นที่ 1: สร้างฐานข้อมูล (ใช้ SSMS)
 
-เปิด Command Prompt ในโฟลเดอร์ `database/` แล้วรัน **ตามลำดับนี้ (ห้ามสลับ)**
+### 1.1 เชื่อมต่อ SQL Server
 
-```
-sqlcmd -S .\SQLEXPRESS -E -f 65001 -i schema.sql
-sqlcmd -S .\SQLEXPRESS -E -f 65001 -i data.sql
-sqlcmd -S .\SQLEXPRESS -E -f 65001 -i logic.sql
-sqlcmd -S .\SQLEXPRESS -E -f 65001 -i queries.sql
-```
+1. เปิด SQL Server Management Studio (SSMS) จะมีหน้าต่าง **Connect to Server** ตั้งค่าดังนี้
+   - **Server type:** Database Engine
+   - **Server name:** `.\SQLEXPRESS` (เครื่องหมายจุดหมายถึงเครื่องนี้ ใช้ได้ทุกเครื่อง) หรือใช้ชื่อเครื่อง เช่น `LAPTOP-12345QS8E\SQLEXPRESS`
+   - **Authentication:** Windows Authentication
+   - ถ้ามีข้อความ error เรื่อง certificate (`The certificate chain was issued by an authority that is not trusted`) ให้ตั้ง **Encryption** เป็น **Optional** หรือติ๊ก **Trust server certificate** แล้วกด **Connect** อีกครั้ง
+2. กด **Connect**
 
+### 1.2 เปิดและรันไฟล์ SQL ตามลำดับ
+
+1. เมนู **File > Open > File...** เปิดโฟลเดอร์ `database` แล้วเลือกไฟล์ทั้ง 4 ไฟล์ (กด Ctrl ค้างแล้วคลิกทีละไฟล์) กด **Open** จะได้ 4 แท็บ
+2. รัน **ตามลำดับนี้ (ห้ามสลับ)** โดยคลิกที่แท็บของไฟล์นั้น แล้วกด **Execute** (ปุ่มสามเหลี่ยมสีเขียว หรือ F5)
+
+| ลำดับ | ไฟล์ | ผลที่ควรเห็น |
+|---|---|---|
+| 1 | `schema.sql` | ตารางสรุปรายชื่อ 9 ตาราง และข้อความ `schema.sql finished: 9 tables created.` ในแท็บ Messages |
+| 2 | `data.sql` | ใช้เวลาครู่หนึ่ง จบโดยไม่มีข้อความ error สีแดง |
+| 3 | `logic.sql` | `Commands completed successfully` |
+| 4 | `queries.sql` | ผลลัพธ์ Query 10 ข้อ (ไม่จำเป็นต่อการรันเว็บ ใช้ดูรายงาน) |
+
+ข้อควรระวัง
+
+- **อย่าไฮไลต์ (เลือก) ข้อความในแท็บก่อนกด Execute** เพราะ SSMS จะรันเฉพาะส่วนที่เลือก ให้คลิกวางเคอร์เซอร์เฉยๆ แล้วกด Execute
 - `schema.sql` สร้างฐานข้อมูล `market_db` ให้เอง และ **รันซ้ำได้** (ลบตารางทั้ง 9 แล้วสร้างใหม่ ข้อมูลเดิมจะหาย จึงต้องรัน `data.sql` กับ `logic.sql` ตามหลังทุกครั้ง)
-- `data.sql`, `logic.sql`, `queries.sql` มี `USE market_db;` บนสุดแล้ว ไม่ต้องใส่ `-d market_db`
-- `queries.sql` คือ Query 10 ข้อสำหรับดูรายงาน ไม่จำเป็นต่อการรันเว็บ ถ้าอยากเก็บผลลัพธ์ลงไฟล์ให้เติม `-o queries_output.txt -W`
-- ต้องใส่ `-f 65001` ทุกครั้ง ไม่เช่นนั้นภาษาไทยจะเพี้ยน
-- ข้อมูลตัวอย่าง: 5 โซน, 50 แผง, 40 ผู้ค้า, 20 พนักงาน, 51 วันตลาด, 575 สัญญา
+- `data.sql`, `logic.sql`, `queries.sql` มี `USE market_db;` บนสุดแล้ว
+
+### 1.3 ตรวจว่าข้อมูลพร้อมใช้งาน
+
+เปิดแท็บใหม่ (**New Query**) แล้วรัน
+
+```sql
+USE market_db;
+SELECT COUNT(*) AS lease_count FROM leases;       -- ควรได้ 575
+SELECT TOP 3 zone_name FROM stall_zones;          -- ภาษาไทยต้องอ่านออก ไม่เป็น ???
+SELECT * FROM vw_market_zone_revenue;             -- ควรเห็น 5 โซน
+```
+
+ข้อมูลตัวอย่าง: 5 โซน, 50 แผง, 40 ผู้ค้า, 20 พนักงาน, 51 วันตลาด, 575 สัญญา
 
 ### ออบเจ็กต์ใน `logic.sql`
 
@@ -68,7 +92,9 @@ sqlcmd -S .\SQLEXPRESS -E -f 65001 -i queries.sql
 | Stored Procedure | `sp_cancel_lease` | ยกเลิกสัญญาและบันทึกคืนเงินมัดจำใน Transaction เดียว |
 | View | `vw_market_zone_revenue` | สรุปอัตราการเช่าและรายได้ค่าเช่า/ค่าน้ำไฟแยกตามโซน |
 
-## ขั้นที่ 2: ตั้งค่าการเชื่อมต่อ
+## ขั้นที่ 2: รันเว็บ
+
+### 2.1 ตรวจการตั้งค่าการเชื่อมต่อ
 
 ตั้งไว้แล้วใน `Market_reserve/Web.config` (ชื่อ `market_db`)
 
@@ -78,7 +104,7 @@ Data Source=.\SQLEXPRESS;Initial Catalog=market_db;Integrated Security=SSPI;
 
 ใช้ Windows Authentication จึงไม่มีรหัสผ่านในโค้ด บัญชี Windows ที่เปิด Visual Studio ต้องมีสิทธิ์เข้า SQL Server ถ้า instance ไม่ได้ชื่อ `SQLEXPRESS` ให้แก้ `Data Source` ให้ตรงกับเครื่อง
 
-## ขั้นที่ 3: รันเว็บ
+### 2.2 เปิดและรัน
 
 1. เปิดไฟล์ `Market_reserve.slnx` ด้วย Visual Studio
 2. กด **F5** (รันด้วย IIS Express) ครั้งแรกอาจมีหน้าต่างถามให้เชื่อถือใบรับรอง SSL ของ IIS Express ให้ตอบ **Yes**
@@ -124,14 +150,15 @@ Data Source=.\SQLEXPRESS;Initial Catalog=market_db;Integrated Security=SSPI;
 
 | อาการ | วิธีแก้ |
 |---|---|
-| ภาษาไทยในผลลัพธ์ SQL เป็น `???` | รันไฟล์ SQL ด้วย `-f 65001` |
+| ภาษาไทยใน SSMS เป็น `???` หรือตัวอักษรแปลกๆ หลังรัน `data.sql` | SSMS อ่านไฟล์ผิดการเข้ารหัส ข้อมูลที่ใส่ไปจะเสีย ให้ปิดแท็บ แล้วเปิดไฟล์ใหม่ด้วยการเข้ารหัส UTF-8 (ใน File > Open > File... กดลูกศรข้างปุ่ม Open เลือก **Open With...** แล้วเลือกตัวแก้ไขที่ให้เลือก Encoding เป็น UTF-8 / Codepage 65001) จากนั้นรัน `schema.sql` → `data.sql` → `logic.sql` ใหม่ตามลำดับ |
 | ภาษาไทยในหน้าเว็บเป็นตัวเพี้ยน | ตรวจว่า `Web.config` มี `<globalization fileEncoding="utf-8" requestEncoding="utf-8" responseEncoding="utf-8" />` ใน `<system.web>` |
-| เชื่อมฐานข้อมูลไม่ได้ | เปิด Command Prompt แบบ Administrator แล้วสั่ง `net start "MSSQL$SQLEXPRESS"` |
-| `Login failed for user` | บัญชี Windows ยังไม่มีสิทธิ์ใน SQL Server เพิ่ม login ใน SSMS หรือใช้บัญชีที่ติดตั้ง SQL Server |
-| `Cannot open database "market_db"` หรือ `Invalid object name` | ยังไม่ได้รัน `schema.sql` / `logic.sql` ให้รันตามลำดับในขั้นที่ 1 |
+| SSMS เชื่อมต่อไม่ได้ (`A network-related or instance-specific error`) | ตรวจชื่อ Server name ให้มี `\SQLEXPRESS` ต่อท้าย และตรวจว่า service ของ SQL Server ทำงานอยู่ (เปิดโปรแกรม **Services** ดูรายการ `SQL Server (SQLEXPRESS)` ว่าเป็น Running หรือเปิด Command Prompt แบบ Administrator แล้วสั่ง `net start "MSSQL$SQLEXPRESS"`) |
+| SSMS ขึ้น error เรื่อง certificate ตอน Connect | ตั้ง **Encryption** เป็น Optional หรือติ๊ก **Trust server certificate** |
+| `Login failed for user` | บัญชี Windows ยังไม่มีสิทธิ์ใน SQL Server เพิ่ม login ใน SSMS (Security > Logins) หรือใช้บัญชีที่ติดตั้ง SQL Server |
+| `Cannot open database "market_db"` หรือ `Invalid object name` | ยังไม่ได้รัน `schema.sql` / `logic.sql` ให้รันตามลำดับในขั้นที่ 1 หรือ query ถูกรันในฐานข้อมูลผิด (ตรวจ dropdown ฐานข้อมูลที่แถบด้านบนว่าเป็น `market_db`) |
+| รันแล้วขึ้นข้อความไม่ครบ หรือรันได้แค่บางส่วน | ใน SSMS มีการไฮไลต์ข้อความค้างอยู่ ให้คลิกในแท็บให้ไม่มีข้อความถูกเลือก แล้วกด Execute ใหม่ |
 | ช่องเลือกวันตลาดว่าง | ไม่มีวันตลาดที่เปิดรับจองและยังไม่ผ่านมา ให้เพิ่มวันตลาดที่หน้าจัดการแผงค้า / วันตลาด |
 | หน้าเว็บไม่มีสไตล์ ปุ่มกดแล้วไม่มีอะไรเกิดขึ้น | ไม่มีอินเทอร์เน็ต (โหลด Bootstrap ไม่ได้) |
 | หน้าเว็บขึ้น "โหลดข้อมูล...ไม่สำเร็จ" | เปิด `https://localhost:<พอร์ต>/<ชื่อ>.ashx` (เช่น `Merchants.ashx`) ตรงๆ แล้วดูข้อความใน `detail` |
-| `sqlcmd` ไม่ถูกรู้จัก | ติดตั้ง SQL Server Command Line Utilities แล้วเปิด Command Prompt ใหม่ |
 | `Msg 208 Invalid object name 'sp_...'` ตอนรัน `logic.sql` | มี procedure ชื่อเดียวกันตกค้างในฐานข้อมูล `master` ตรวจด้วย `SELECT name FROM master.sys.objects WHERE name LIKE 'sp[_]%'` แล้วลบตัวที่ตกค้างด้วย `USE master; GO DROP PROCEDURE dbo.sp_reserve_stall; GO` จากนั้นรัน `logic.sql` ใหม่ |
 | อยากรีเซ็ตข้อมูลเป็นค่าตั้งต้น | รัน `schema.sql` → `data.sql` → `logic.sql` ใหม่ตามลำดับ |
