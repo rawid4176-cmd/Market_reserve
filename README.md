@@ -32,7 +32,7 @@
 ├── README.md
 ├── Market_reserve.slnx        ไฟล์ Solution (เปิดด้วย Visual Studio)
 ├── Market_reserve/            โค้ดเว็บ: หน้า .html, handler .ashx, Web.config
-└── database/
+└── DATABASE/
     ├── schema.sql             สร้างฐานข้อมูล ตาราง constraint index
     ├── data.sql               ข้อมูลจำลอง
     ├── logic.sql              Stored Procedure, Trigger, View
@@ -53,7 +53,7 @@
 
 ### 1.2 เปิดและรันไฟล์ SQL ตามลำดับ
 
-1. เมนู **File > Open > File...** เปิดโฟลเดอร์ `database` แล้วเลือกไฟล์ทั้ง 4 ไฟล์ (กด Ctrl ค้างแล้วคลิกทีละไฟล์) กด **Open** จะได้ 4 แท็บ
+1. เมนู **File > Open > File...** เปิดโฟลเดอร์ `DATABASE` แล้วเลือกไฟล์ทั้ง 4 ไฟล์ (กด Ctrl ค้างแล้วคลิกทีละไฟล์) กด **Open** จะได้ 4 แท็บ
 2. รัน **ตามลำดับนี้ (ห้ามสลับ)** โดยคลิกที่แท็บของไฟล์นั้น แล้วกด **Execute** (ปุ่มสามเหลี่ยมสีเขียว หรือ F5)
 
 | ลำดับ | ไฟล์ | ผลที่ควรเห็น |
@@ -155,7 +155,7 @@ Data Source=.\SQLEXPRESS;Initial Catalog=market_db;Integrated Security=SSPI;
 | SSMS เชื่อมต่อไม่ได้ (`A network-related or instance-specific error`) | ตรวจชื่อ Server name ให้มี `\SQLEXPRESS` ต่อท้าย และตรวจว่า service ของ SQL Server ทำงานอยู่ (เปิดโปรแกรม **Services** ดูรายการ `SQL Server (SQLEXPRESS)` ว่าเป็น Running หรือเปิด Command Prompt แบบ Administrator แล้วสั่ง `net start "MSSQL$SQLEXPRESS"`) |
 | SSMS ขึ้น error เรื่อง certificate ตอน Connect | ตั้ง **Encryption** เป็น Optional หรือติ๊ก **Trust server certificate** |
 | `Login failed for user` | บัญชี Windows ยังไม่มีสิทธิ์ใน SQL Server เพิ่ม login ใน SSMS (Security > Logins) หรือใช้บัญชีที่ติดตั้ง SQL Server |
-| `Cannot open database "market_db"` หรือ `Invalid object name` | ยังไม่ได้รัน `schema.sql` / `logic.sql` ให้รันตามลำดับในขั้นที่ 1 หรือ query ถูกรันในฐานข้อมูลผิด (ตรวจ dropdown ฐานข้อมูลที่แถบด้านบนว่าเป็น `market_db`) |
+| `Cannot open DATABASE "market_db"` หรือ `Invalid object name` | ยังไม่ได้รัน `schema.sql` / `logic.sql` ให้รันตามลำดับในขั้นที่ 1 หรือ query ถูกรันในฐานข้อมูลผิด (ตรวจ dropdown ฐานข้อมูลที่แถบด้านบนว่าเป็น `market_db`) |
 | รันแล้วขึ้นข้อความไม่ครบ หรือรันได้แค่บางส่วน | ใน SSMS มีการไฮไลต์ข้อความค้างอยู่ ให้คลิกในแท็บให้ไม่มีข้อความถูกเลือก แล้วกด Execute ใหม่ |
 | ช่องเลือกวันตลาดว่าง | ไม่มีวันตลาดที่เปิดรับจองและยังไม่ผ่านมา ให้เพิ่มวันตลาดที่หน้าจัดการแผงค้า / วันตลาด |
 | หน้าเว็บไม่มีสไตล์ ปุ่มกดแล้วไม่มีอะไรเกิดขึ้น | ไม่มีอินเทอร์เน็ต (โหลด Bootstrap ไม่ได้) |
