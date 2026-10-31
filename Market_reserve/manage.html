@@ -198,7 +198,7 @@
 
                 // ส่งคำสั่ง (เพิ่ม/แก้ไข/ลบ) ไปที่ handler แล้วรับผลเป็น JSON
                 function call(payload) {
-                    return fetch('stall_dmin.ashx', {
+                    return fetch('stall_admin.ashx', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
